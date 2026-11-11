@@ -6451,7 +6451,7 @@ function escapeHtml(str) {
     }
     __chatLayer = document.createElement('div');
     __chatLayer.id = 'camellia-chat-layer';
-    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
+    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);outline:2px solid red;outline-offset:-2px;';
     const chatFrame = document.createElement('iframe');
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');

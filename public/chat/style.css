@@ -2813,3 +2813,5 @@ body:has(#pane-wrap:not(.hidden)) .tabbar { opacity: 0; pointer-events: none; }
 /* ============ 嵌入 iframe 时的 iOS 高度兜底：JS 会写入 --app-h，杜绝底部空白 ============ */
 .app { height: var(--app-h, 100%) !important; }
 .pane-wrap { height: var(--app-h, 100%) !important; }
+/* 临时诊断：绿线=聊天页.app底边 红线=iframe底边（父页面画） */
+#dbg-diag .app { outline: 2px solid lime; outline-offset: -2px; }
