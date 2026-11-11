@@ -4947,7 +4947,7 @@
 
   var defaultDesktopLayout = {
     page1: [
-      { id: "chat", name: "山茶信笺", sheet: "chat", type: "app", href: "chat/index.html" },
+      { id: "chat", name: "山茶信笺", sheet: "chat", type: "app" },
       { id: "messages", name: "信息", sheet: "messages", type: "app" },
       { id: "cy_phone", name: "月白暗格", desc: "查私密手机", sheet: "cy_phone", type: "app" },
       { id: "lorebook", name: "灵魂秘卷", desc: "专属世界书", sheet: "lorebook", type: "app" }
@@ -4993,7 +4993,7 @@
         if (parsed && parsed.page1) {
           parsed.page1.forEach(it => {
             if (it.id === 'chat' || it.sheet === 'chat') {
-              it.href = 'chat/index.html';
+              delete it.href; /* 聊天改为网页内全屏层打开 */
             }
             if (it.id === 'phone' || it.sheet === 'phone') {
               it.id = 'messages';
@@ -6441,11 +6441,36 @@ function escapeHtml(str) {
     }
   }
 
-  // 打开微聊（同一台小手机里的聊天应用）
+  // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
+  let __chatLayer = null;
   function openPocketChat() {
-    try { window.location.href = 'chat/index.html'; }
-    catch (e) { alert('微聊目录还没放进来'); }
+    if (__chatLayer && document.body.contains(__chatLayer)) {
+      __chatLayer.style.display = 'block';
+      requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
+      return;
+    }
+    __chatLayer = document.createElement('div');
+    __chatLayer.id = 'camellia-chat-layer';
+    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#f5f5f7;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
+    const fr = document.createElement('iframe');
+    fr.src = 'chat/index.html';
+    fr.setAttribute('allow', 'clipboard-write');
+    fr.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+    __chatLayer.appendChild(fr);
+    document.body.appendChild(__chatLayer);
+    requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch(e) {}
   }
+  // 接收聊天应用内部的返回消息，收回层回到桌面
+  window.addEventListener('message', function(ev) {
+    if (!ev.data || ev.data.type !== 'pchat:exit') return;
+    if (__chatLayer) {
+      __chatLayer.style.opacity = '0';
+      __chatLayer.style.transform = 'translateX(60px)';
+      setTimeout(() => { if (__chatLayer) { __chatLayer.style.display = 'none'; } }, 380);
+    }
+  });
+
 
   
   // 查手机系统动态自填数据管理（初始 100% 干净零内置）
