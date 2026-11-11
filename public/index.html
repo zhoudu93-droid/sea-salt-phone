@@ -6458,14 +6458,22 @@ function escapeHtml(str) {
     chatFrame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;';
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
-    // 关键修复：iframe 内 100% 高度在 iOS 上按错误基准计算，导致底部空出一大块。
-    // 改为直接量测父页面 body 的真实像素高度写死给层与 iframe，并在转屏/键盘弹出时同步。
+    // 关键修复：iframe 里 iOS 自测高度会报矮导致底部空白。父页面是可靠基准：
+    // 量出父页面真实可用高度，持续同步给层、iframe 和聊天页内部的 --app-h。
     const fitNow = function() {
       const h = Math.max(document.documentElement.clientHeight, window.innerHeight);
       __chatLayer.style.height = h + 'px';
+      chatFrame.style.height = h + 'px';
+      try {
+        const d = chatFrame.contentDocument;
+        if (d && d.documentElement) d.documentElement.style.setProperty('--app-h', h + 'px');
+      } catch (e) {}
     };
     fitNow();
+    chatFrame.addEventListener('load', fitNow);
     window.addEventListener('orientationchange', function(){ setTimeout(fitNow, 350); });
+    // 前几秒同步几次（覆盖键盘收起、旋转等 iOS 时机）
+    let __fn = 0; const __ft = setInterval(function(){ fitNow(); if (++__fn > 10) clearInterval(__ft); }, 400);
     requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
     try { if (navigator.vibrate) navigator.vibrate(12); } catch(e) {}
   }
