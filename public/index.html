@@ -6444,51 +6444,11 @@ function escapeHtml(str) {
   // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
   let __chatLayer = null;
   let __fitChatLayer = null;
+  // 打开微聊：独立页面跳转（iPhone Safari 对 iframe 有怪癖，跳转页渲染最稳）
   function openPocketChat() {
-    if (__chatLayer && document.body.contains(__chatLayer)) {
-      __chatLayer.style.display = 'block';
-      requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
-      return;
-    }
-    __chatLayer = document.createElement('div');
-    __chatLayer.id = 'camellia-chat-layer';
-    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
-    const chatFrame = document.createElement('iframe');
-    chatFrame.src = 'chat/index.html';
-    chatFrame.setAttribute('allow', 'clipboard-write');
-    chatFrame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;';
-    __chatLayer.appendChild(chatFrame);
-    document.body.appendChild(__chatLayer);
-    // 把父页面（桌面）的 iPhone 安全区高度传给聊天页（iframe 里 env() 读不到）
-    chatFrame.addEventListener('load', function injectSafe() {
-      try {
-        const probe = document.createElement('div');
-        probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none;';
-        document.body.appendChild(probe);
-        const probeB = document.createElement('div');
-        probeB.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none;';
-        document.body.appendChild(probeB);
-        const t = probe.offsetHeight, b = probeB.offsetHeight;
-        probe.remove(); probeB.remove();
-        const d = chatFrame.contentDocument;
-        if (d && d.documentElement) {
-          d.documentElement.style.setProperty('--safe-t', t + 'px');
-          d.documentElement.style.setProperty('--safe-b', b + 'px');
-        }
-      } catch (e) {}
-    });
-    requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
-    try { if (navigator.vibrate) navigator.vibrate(12); } catch(e) {}
+    try { window.location.href = 'chat/index.html'; }
+    catch (e) { alert('微聊目录还没放进来'); }
   }
-  // 接收聊天应用内部的返回消息，收回层回到桌面
-  window.addEventListener('message', function(ev) {
-    if (!ev.data || ev.data.type !== 'pchat:exit') return;
-    if (__chatLayer) {
-      __chatLayer.style.opacity = '0';
-      __chatLayer.style.transform = 'translateX(60px)';
-      setTimeout(() => { if (__chatLayer) { __chatLayer.style.display = 'none'; } }, 380);
-    }
-  });
 
   
   // 查手机系统动态自填数据管理（初始 100% 干净零内置）
