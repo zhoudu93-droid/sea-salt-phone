@@ -809,25 +809,25 @@ function bindTabs() {
 }
 
 const TAB_META = {
-  chat:     { title: '微信',   left: 'back',  right: 'plus' },
-  contacts: { title: '通讯录', left: 'blank', right: 'add'  },
-  discover: { title: '发现',   left: 'blank', right: 'plus' },
-  moments:  { title: '朋友圈', left: 'back',  right: 'cam'  },
-  me:       { title: '我',     left: 'blank', right: 'more' }
+  chat:     { title: 'Messages', left: 'back',  right: 'plane' },
+  contacts: { title: 'Friends',  left: 'blank', right: 'add'  },
+  discover: { title: 'Moments',  left: 'blank', right: 'plus' },
+  moments:  { title: 'Feed',     left: 'back',  right: 'cam'  },
+  me:       { title: 'Profile',  left: 'blank', right: 'more' }
 };
 
 function renderTab(tab) {
   S.tab = tab;
   $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   $$('.view').forEach(v => v.classList.toggle('hidden', v.dataset.view !== tab));
-  const meta = TAB_META[tab] || { title: '微信', left: 'back', right: 'plus' };
+  const meta = TAB_META[tab] || { title: 'Messages', left: 'back', right: 'plane' };
   $('#hdr-title').textContent = meta.title;
   // 头部按钮
   const L = $('#hdr-left'), R = $('#hdr-right');
   const icon = (id, color) => `<svg ${color ? `style="color:${color}"` : ''}><use href="#${id}"></use></svg>`;
   L.innerHTML = meta.left === 'back' ? icon('i-back') : '';
   L.style.visibility = meta.left === 'back' ? 'visible' : 'hidden';
-  const rmap = { plus:'i-plus', add:'i-plus', cam:'i-cam', more:'i-more' };
+  const rmap = { plus:'i-plus', add:'i-plus', cam:'i-cam', more:'i-more', plane:'i-send' };
   R.innerHTML = icon(rmap[meta.right] || 'i-more');
   R.onclick = () => headerAction(tab);
   L.onclick = () => headerLeft(tab);
@@ -993,9 +993,51 @@ function renderChatList(host) {
     .map(p => ({ p, m: lastMsgOf(p.id) }))
     .sort((a, b) => (b.m ? b.m.time : 0) - (a.m ? a.m.time : 0));
 
+  const curMask = getCurrentMask();
+  const meAv = (curMask && curMask.avatar) || (S.account && S.account.avatar) || '';
+  const meName = (curMask && curMask.name) || (S.account && S.account.nickname) || '我';
+  const meLetter = cleanFirstChar(meName);
+  const meMood = (S.account && S.account.sign) || '今天也要好好呼吸';
+
   let html = `
+    <!-- INS 风顶部：我的头像 + 今日心语 + 快拍圈圈 -->
+    <div class="ins-header">
+      <div class="ins-me-block" id="ins-me-block">
+        <div class="ins-story-ring me-ring">
+          <div class="av lg">${meAv ? `<img src="${meAv}">` : esc(meLetter)}</div>
+          <span class="ins-online-dot"></span>
+        </div>
+        <div class="ins-me-text">
+          <div class="ins-me-name">${esc(meName)}</div>
+          <div class="ins-me-mood">${esc(meMood)}</div>
+        </div>
+      </div>
+      <div class="ins-stories">
+        ${items.map(({ p }) => {
+          const d = displayOf(p);
+          const letter = cleanFirstChar(d.name);
+          return `
+          <div class="ins-story-item" data-pid="${p.id}">
+            <div class="ins-story-ring">
+              <div class="av">${d.avatar ? `<img src="${d.avatar}">` : esc(letter)}</div>
+            </div>
+            <span class="ins-story-name">${esc(d.name)}</span>
+          </div>`;
+        }).join('')}
+        <div class="ins-story-item" id="ins-add-story">
+          <div class="ins-story-ring add-ring">
+            <div class="av" style="background:var(--accent-soft);color:var(--accent)">
+              <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"><use href="#i-plus"></use></svg>
+            </div>
+          </div>
+          <span class="ins-story-name">新建</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 轻盈搜索药丸 -->
     <div class="searchbar">
-      <div class="searchbar-in"><svg><use href="#i-search"></use></svg><span>搜索</span></div>
+      <div class="searchbar-in"><svg><use href="#i-search"></use></svg><span>在记忆与来信中寻找…</span></div>
     </div>`;
 
   if (!items.length) {
@@ -1005,22 +1047,39 @@ function renderChatList(host) {
       <button class="mini-btn" onclick="renderTab('contacts')">去通讯录</button>
     </div>`;
   } else {
-    html += items.map(({ p, m }) => `
-      <div class="row" data-pid="${p.id}">
-        ${avatarHtml(displayOf(p))}
+    html += `<div class="ins-chat-card">` + items.map(({ p, m }) => {
+      const d = displayOf(p);
+      const letter = cleanFirstChar(d.name);
+      const unread = 0; // 预留：未读数
+      return `
+      <div class="ins-chat-row" data-pid="${p.id}">
+        <div class="ins-av-wrap">
+          <div class="av lg">${d.avatar ? `<img src="${d.avatar}">` : esc(letter)}</div>
+          <span class="ins-online-dot"></span>
+        </div>
         <div class="row-main">
           <div class="row-top">
-            <div class="row-name">${esc(displayOf(p).name)}</div>
+            <div class="row-name">${esc(d.name)}</div>
             <div class="row-time">${m ? fmtRowTime(m.time) : ''}</div>
           </div>
           <div class="row-sub">${esc(m && m.role === 'me' ? '我：' + previewOf(m) : previewOf(m))}</div>
         </div>
-      </div>`).join('');
+        ${unread > 0 ? `<span class="ins-unread-pill">♡ ${unread}</span>` : ''}
+      </div>`;
+    }).join('') + `</div>`;
   }
   host.innerHTML = html;
-  host.querySelectorAll('.row[data-pid]').forEach(r => {
+
+  host.querySelectorAll('.ins-chat-row[data-pid]').forEach(r => {
     r.onclick = () => openChat(r.dataset.pid);
   });
+  host.querySelectorAll('.ins-story-item[data-pid]').forEach(r => {
+    r.onclick = () => openChat(r.dataset.pid);
+  });
+  const meBlock = host.querySelector('#ins-me-block');
+  if (meBlock) meBlock.onclick = () => renderTab('me');
+  const addStory = host.querySelector('#ins-add-story');
+  if (addStory) addStory.onclick = () => { closeSubpage(); headerAction('chat'); };
 }
 
 /* 显示名：备注 > 昵称 */
@@ -1382,9 +1441,9 @@ function openChatSettingsPage(p) {
   openSubpage({
     title: d.name || '聊天设置',
     bodyHtml: `
-      <!-- 顶部双人头像重叠版角色卡片（同聊天顶栏重叠样式，下方写双人名字） -->
+      <!-- 顶部双人头像重叠版角色卡片（独立居中布局，绝不被聊天顶栏样式覆盖） -->
       <div class="acc-mask-card cs-duo-card" id="cs-profile-card" style="cursor:pointer;margin-bottom:14px;flex-direction:column;align-items:center;padding:18px 14px 14px;">
-        <div class="chat-hero-avatars duo-deco" style="position:relative;left:auto;transform:none;margin-bottom:10px;">
+        <div class="cs-duo-avatars duo-deco" style="position:relative;margin-bottom:10px;">
           <div class="chat-big-av" style="width:62px;height:62px;">
             ${p.avatar ? `<img src="${p.avatar}">` : `<div class="chat-big-av-fallback">${esc(cleanFirstChar(p.name))}</div>`}
           </div>
@@ -1632,19 +1691,17 @@ function openChat(pid) {
             <path d="M0 20 H30 Q36 20 38 18 Q40 16 42 20 H48 L51 17 L55 33 L62 4 L68 28 L72 17 L76 20 H82 Q88 20 92 14 Q96 20 102 20 H218 Q224 20 228 14 Q232 20 238 20 H244 L248 17 L252 28 L258 4 L265 33 L269 17 L272 20 H278 Q280 16 282 18 Q284 20 290 20 H320" stroke="#9FC7EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-
-        <!-- 悬挂在背景图与圆角白卡交界边缘的双圆大头像 -->
-        <div class="chat-hero-avatars">
-          <div class="chat-big-av" id="chat-top-av-them" title="单击查看未言心声">
-            ${p.avatar ? `<img src="${p.avatar}">` : `<div class="chat-big-av-fallback">${esc(themLetter)}</div>`}
-          </div>
-          <div class="chat-big-av" id="chat-top-av-me" title="${esc(myDisplay.name)}">
-            ${myDisplay.avatar ? `<img src="${myDisplay.avatar}">` : `<div class="chat-big-av-fallback">${esc(meLetter)}</div>`}
-          </div>
-        </div>
       </div>
+    </div>
 
-      <!-- 白色圆角聊天纸：直接从背景图底边起边（圆角在 chat-body 上），与消息裁切线严丝合缝 -->
+    <!-- 悬挂在背景图与圆角白卡交界边缘的双圆大头像 (移出 pinned-top 成为 pane 直接子元素) -->
+    <div class="chat-hero-avatars">
+      <div class="chat-big-av" id="chat-top-av-them" title="单击查看未言心声">
+        ${p.avatar ? `<img src="${p.avatar}">` : `<div class="chat-big-av-fallback">${esc(themLetter)}</div>`}
+      </div>
+      <div class="chat-big-av" id="chat-top-av-me" title="${esc(myDisplay.name)}">
+        ${myDisplay.avatar ? `<img src="${myDisplay.avatar}">` : `<div class="chat-big-av-fallback">${esc(meLetter)}</div>`}
+      </div>
     </div>
 
     <!-- 纯净聊天信息流（仅消息顺滑滚动） -->

@@ -262,6 +262,163 @@ html[data-theme="midnight"] .av {
   padding: 12px 4px 6px; text-transform: uppercase;
 }
 
+/* ============ INS 风顶部：头像块 + 快拍圈圈 ============ */
+.ins-header {
+  padding: 2px 0 6px;
+  position: relative;
+}
+/* 页面晨光渐变光斑：粉蓝双色轻染 */
+.view[data-view="chat"] {
+  background-image:
+    radial-gradient(60% 40% at 80% 0%, rgba(248,200,216,0.14) 0%, transparent 60%),
+    radial-gradient(50% 35% at 0% 30%, rgba(191,213,238,0.16) 0%, transparent 55%);
+  background-repeat: no-repeat;
+}
+.ins-me-block {
+  display: flex; align-items: center; gap: 13px;
+  padding: 6px 2px 14px;
+  cursor: pointer;
+}
+.ins-me-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ins-me-name {
+  font-size: 17px; font-weight: 700; color: var(--text);
+  letter-spacing: 0.01em;
+}
+.ins-me-mood {
+  font-size: 12px; color: var(--text-3);
+  letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 210px;
+}
+.ins-me-mood::after {
+  content: ' ♡';
+  color: #F0B8CC;
+  font-size: 11px;
+  animation: moodHeart 2.8s ease-in-out infinite;
+}
+@keyframes moodHeart {
+  0%,100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+.ins-stories {
+  display: flex; align-items: flex-start; gap: 14px;
+  overflow-x: auto; padding: 2px 2px 10px;
+  scrollbar-width: none;
+}
+.ins-stories::-webkit-scrollbar { display: none; }
+.ins-story-item {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  flex: 0 0 auto; cursor: pointer; width: 60px;
+}
+.ins-story-name {
+  font-size: 10.5px; color: var(--text-3); font-weight: 500;
+  max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ins-story-ring {
+  position: relative;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 20deg,
+    #F8C8D8, #BFD5EE, #FBE7C6, #E4B9D4, #F8C8D8);
+  display: flex; align-items: center; justify-content: center;
+}
+/* 星环旋转微光：像在呼吸的光晕 */
+.ins-story-ring::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    rgba(248,200,216,0), rgba(248,200,216,0.8), rgba(191,213,238,0.8), rgba(248,200,216,0));
+  animation: ringSpin 6s linear infinite;
+  z-index: -1;
+  filter: blur(1px);
+}
+@keyframes ringSpin { to { transform: rotate(360deg); } }
+.ins-story-ring.me-ring {
+  background: conic-gradient(from 180deg,
+    rgba(180, 205, 235, 0.9), rgba(240, 210, 220, 0.9), rgba(180, 205, 235, 0.9));
+}
+.ins-story-ring.add-ring {
+  background: var(--line);
+  border: 1.6px dashed var(--text-4);
+}
+.ins-story-ring .av {
+  width: 44px; height: 44px;
+  border: 2.5px solid var(--card);
+  font-size: 15px;
+}
+.ins-story-ring .av.lg {
+  width: 46px; height: 46px;
+  font-size: 16px;
+}
+.ins-online-dot {
+  position: absolute;
+  right: 1px; bottom: 1px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #7ED9A5;
+  border: 2px solid var(--card);
+  box-shadow: 0 1px 4px rgba(60, 180, 110, 0.35);
+  animation: dotBreath 2.4s ease-in-out infinite;
+}
+@keyframes dotBreath {
+  0%,100% { box-shadow: 0 0 0 2px var(--card), 0 0 6px rgba(126,217,165,0.5); transform: scale(1); }
+  50% { box-shadow: 0 0 0 2px var(--card), 0 0 12px rgba(126,217,165,0.9); transform: scale(1.15); }
+}
+.ins-av-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.ins-av-wrap .av.lg {
+  width: 54px; height: 54px;
+  font-size: 18px;
+  border: 2px solid var(--card);
+  box-shadow: 0 3px 10px -2px rgba(24, 36, 52, 0.14);
+}
+.ins-av-wrap .ins-online-dot {
+  right: 0; bottom: 2px;
+}
+.ins-me-block .ins-story-ring .ins-online-dot {
+  right: 0; bottom: 0;
+}
+
+/* ============ INS 风会话卡片 ============ */
+.ins-chat-card {
+  background: var(--card);
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  padding: 4px 4px;
+  position: relative;
+}
+.ins-chat-row {
+  display: flex; align-items: center; gap: 13px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+  position: relative;
+}
+.ins-chat-row:active {
+  background: var(--bg-subtle);
+  transform: scale(0.985);
+}
+.ins-chat-row + .ins-chat-row {
+  border-top: 1px solid rgba(120, 140, 170, 0.10);
+}
+.ins-unread-pill {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700;
+  color: #E86A8A;
+  background: rgba(248, 200, 216, 0.30);
+  border: 1px solid rgba(232, 106, 138, 0.22);
+  border-radius: 999px;
+  padding: 3px 9px;
+  letter-spacing: 0.02em;
+}
+
 .row {
   display: flex; align-items: center; gap: 13px;
   padding: 12px 14px;
@@ -491,16 +648,33 @@ html[data-theme="midnight"] .duo-deco .chat-big-av::before {
 .subpage-hdr {
   position: absolute; top: 0; left: 0; right: 0;
   z-index: 30;
+  padding-top: calc(var(--safe-t) + 12px);
+  height: calc(64px + var(--safe-t));
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
   background: var(--card-glass);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
   backdrop-filter: blur(28px) saturate(200%);
   border-bottom: 1px solid var(--line);
 }
+.subpage-hdr .hdr-title {
+  text-align: left;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin-left: 2px;
+  flex: 1 1 auto;
+}
+.subpage-hdr .hdr-right {
+  margin-left: auto;
+}
 .subpage-body {
   flex: 1 1 auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: calc(64px + var(--safe-t)) 16px calc(24px + var(--safe-b));
+  padding: calc(76px + var(--safe-t)) 16px calc(24px + var(--safe-b));
   display: flex; flex-direction: column;
 }
 
@@ -1634,7 +1808,7 @@ html[data-theme="midnight"] .auth-segment { background: rgba(255,255,255,.08); }
   font-weight: 600;
 }
 .pane > .chat-body {
-  padding-top: 6px !important;
+  padding-top: 44px !important;
 }
 
 /* 2 · 朋友圈：封面铺满 + 右下角头像完整跨边不裁切 */
@@ -1967,7 +2141,7 @@ html[data-theme="midnight"] .acc-mask-card.is-current {
 
 /* 聊天面板最外层 */
 .pane {
-  background: #FFFFFF !important;
+  background: #FFFFFF;
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
@@ -1976,32 +2150,34 @@ html[data-theme="midnight"] .acc-mask-card.is-current {
   inset: 0 !important;
 }
 html[data-theme="midnight"] .pane {
-  background: #12161E !important;
+  background: #12161E;
 }
 
-/* 固定置顶顶栏区域：底色透明露出面板层背景图（面板层铺背景，白纸圆角外露角落透出的就是它） */
+/* 固定置顶顶栏区域：高度 112px，不被内部撑大 */
 .chat-pinned-top {
-  position: relative;
-  z-index: 30;
-  width: 100%;
-  flex-shrink: 0;
+  position: relative !important;
+  z-index: 10 !important;
+  width: 100% !important;
+  height: 112px !important;
+  flex-shrink: 0 !important;
   background: transparent !important;
-  border-radius: 0 0 0 0;
+  border-radius: 0 0 0 0 !important;
+  overflow: visible !important;
 }
 
-/* 顶部置顶大背景图（高度 112px，上方带圆角与复古邮票孔） */
+/* 顶部置顶大背景图（高度 136px，向下探出 24px 垫在白卡片后面） */
 .chat-hero-banner {
-  width: 100%;
-  height: 112px;
+  width: 100% !important;
+  height: 136px !important;
   background-color: #6B7280;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  position: relative;
+  position: relative !important;
+  z-index: 10 !important;
   cursor: pointer;
-  overflow: visible !important;
-  border-radius: 18px 18px 0 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border-radius: 18px 18px 0 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 .chat-hero-banner::after {
   content: '';
@@ -2013,12 +2189,12 @@ html[data-theme="midnight"] .pane {
   opacity: 0.85;
 }
 
-/* 悬浮极简顶栏导航按键（左侧返回+人设名字胶囊，右侧更多设置） */
+/* 悬浮极简顶栏导航按键（左侧返回+人设名字胶囊，右侧更多设置，显著下移露出顶部呼吸感） */
 .chat-ins-nav-bar {
   position: absolute;
   top: 0; left: 0; right: 0;
   z-index: 40;
-  padding: calc(var(--safe-t) + 6px) 14px 0;
+  padding: calc(var(--safe-t) + 52px) 16px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2086,13 +2262,14 @@ html[data-theme="midnight"] .chat-ins-name-pill {
   display: flex; align-items: center; gap: 8px;
 }
 
-/* 雾化柔焦滤镜层 (Mist Overlay) */
+/* 雾化柔焦滤镜层 (Mist Overlay) 柔白质感透光薄纱 */
 .chat-hero-banner::before {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.28) 100%),
-              linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.18) 100%);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
+  background: 
+    linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(210,225,242,0.22) 55%, rgba(255,255,255,0.42) 100%),
+    radial-gradient(circle at 50% 30%, rgba(255,255,255,0.15) 0%, rgba(15,25,40,0.32) 100%);
+  -webkit-backdrop-filter: blur(5px) saturate(1.15);
+  backdrop-filter: blur(5px) saturate(1.15);
   border-radius: 18px 18px 0 0;
   pointer-events: none;
 }
@@ -2101,11 +2278,12 @@ html[data-theme="midnight"] .chat-hero-banner::before {
               linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(18,22,30,0.55) 100%);
 }
 
-/* 左下角可修改的韩文文案（位于心电图上方，不被遮挡） */
+/* 右上角/右侧可修改的心语文案（靠右展示，位于三点菜单下方） */
 .chat-hero-korean-text {
   position: absolute;
-  bottom: 52px;
-  left: 14px;
+  top: 98px;
+  right: 16px;
+  left: auto;
   z-index: 25;
   color: #FFFFFF;
   font-size: 11px;
@@ -2113,22 +2291,24 @@ html[data-theme="midnight"] .chat-hero-banner::before {
   letter-spacing: 0.03em;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
   line-height: 1.45;
-  max-width: 60%;
+  text-align: right;
+  max-width: 65%;
   cursor: pointer;
 }
 
-/* 完全显示在背景图上方、穿过双头像背后的心电图脉冲线条 */
+/* 完全显示在背景图上方、穿过双头像背后的心电图脉冲线条 (上移到 y=72 处，完全露在背景图上不被白卡遮挡) */
 .chat-ecg-track {
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: absolute !important;
+  top: 70px !important;
+  bottom: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   width: 320px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 15;
+  z-index: 15 !important;
   pointer-events: none;
   opacity: 0.96;
 }
@@ -2138,19 +2318,22 @@ html[data-theme="midnight"] .chat-hero-banner::before {
   filter: drop-shadow(0 2px 6px rgba(30, 60, 100, 0.35));
 }
 
-/* 悬挂在背景图与下方圆角白卡交界处的双圆大头像 (68px，微叠居中) */
+/* 悬挂在背景图与下方圆角白卡交界处的双圆大头像 (68px，骑跨在 y=112 线上) */
 .chat-hero-avatars {
-  position: absolute;
-  bottom: -34px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: absolute !important;
+  top: 78px !important;
+  bottom: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 28;
+  z-index: 50 !important;
   margin: 0;
+  pointer-events: none !important;
 }
 .chat-big-av {
+  pointer-events: auto !important;
   width: 68px; height: 68px;
   border-radius: 50%;
   border: 3px solid #FFFFFF;
@@ -2323,12 +2506,14 @@ html[data-theme="midnight"] .chat-body {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
-  padding: 6px 16px calc(86px + var(--safe-b)) !important;
+  padding: 44px 16px calc(86px + var(--safe-b)) !important;
   background-color: #FFFFFF !important;
   background-image: none !important;
   border-radius: 22px 22px 0 0 !important;
   margin-top: 0 !important;
-  box-shadow: 0 -1px 0 rgba(31, 39, 51, 0.06);
+  position: relative !important;
+  z-index: 20 !important;
+  box-shadow: 0 -2px 14px rgba(15, 25, 40, 0.08) !important;
 }
 html[data-theme="midnight"] .chat-body {
   background-color: #12161E !important;

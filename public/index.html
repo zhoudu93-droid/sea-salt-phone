@@ -4993,7 +4993,7 @@
         if (parsed && parsed.page1) {
           parsed.page1.forEach(it => {
             if (it.id === 'chat' || it.sheet === 'chat') {
-              delete it.href; /* 聊天改为网页内全屏层打开 */
+              delete it.href; /* 网页内层打开 */
             }
             if (it.id === 'phone' || it.sheet === 'phone') {
               it.id = 'messages';
@@ -6443,6 +6443,7 @@ function escapeHtml(str) {
 
   // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
   let __chatLayer = null;
+  let __fitChatLayer = null;
   function openPocketChat() {
     if (__chatLayer && document.body.contains(__chatLayer)) {
       __chatLayer.style.display = 'block';
@@ -6459,7 +6460,7 @@ function escapeHtml(str) {
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
     // 按真实视口像素撑满，防止 iOS 上 100% 高度算不准导致底部漏出一截
-    const __fitChatLayer = function() {
+    __fitChatLayer = function() {
       try {
         const h = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : window.innerHeight;
         __chatLayer.style.height = h + 'px';
@@ -6498,7 +6499,6 @@ function escapeHtml(str) {
       setTimeout(() => { if (__chatLayer) { __chatLayer.style.display = 'none'; } }, 380);
     }
   });
-
 
   
   // 查手机系统动态自填数据管理（初始 100% 干净零内置）
