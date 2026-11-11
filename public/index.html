@@ -6452,23 +6452,13 @@ function escapeHtml(str) {
     }
     __chatLayer = document.createElement('div');
     __chatLayer.id = 'camellia-chat-layer';
-    __chatLayer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999900;background:#f5f5f7;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
+    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
     const chatFrame = document.createElement('iframe');
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');
-    chatFrame.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;display:block;';
+    chatFrame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;';
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
-    // 按真实视口像素撑满，防止 iOS 上 100% 高度算不准导致底部漏出一截
-    __fitChatLayer = function() {
-      try {
-        const h = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : window.innerHeight;
-        __chatLayer.style.height = h + 'px';
-      } catch (e) { __chatLayer.style.height = '100%'; }
-    };
-    __fitChatLayer();
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', __fitChatLayer);
-    window.addEventListener('resize', __fitChatLayer);
     // 把父页面（桌面）的 iPhone 安全区高度传给聊天页（iframe 里 env() 读不到）
     chatFrame.addEventListener('load', function injectSafe() {
       try {
