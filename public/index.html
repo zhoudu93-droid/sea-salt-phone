@@ -6443,10 +6443,6 @@ function escapeHtml(str) {
 
   // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
   let __chatLayer = null;
-  let __fitChatLayer = null;
-  // 打开微聊：独立页面跳转（iPhone Safari 对 iframe 有怪癖，跳转页渲染最稳）
-  // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
-  let __chatLayer = null;
   function openPocketChat() {
     if (__chatLayer && document.body.contains(__chatLayer)) {
       __chatLayer.style.display = 'block';
