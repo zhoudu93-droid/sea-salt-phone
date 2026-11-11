@@ -4150,3 +4150,17 @@ function openStickerRenamePage(item, idx) {
    执行启动
    ================================================================ */
 boot();
+
+// ============ iOS iframe 高度兜底：用真实像素写死 app 高度，杜绝底部空白 ============
+(function fixAppHeight(){
+  const setH = function(){
+    const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
+  };
+  setH();
+  window.addEventListener('resize', setH);
+  window.addEventListener('orientationchange', function(){ setTimeout(setH, 350); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', setH);
+  // 兜底轮询前 2 秒（iOS 旋转/键盘动画期间 resize 可能不触发）
+  let n = 0; const t = setInterval(function(){ setH(); if (++n > 8) clearInterval(t); }, 250);
+})();

@@ -2809,3 +2809,7 @@ html[data-theme="midnight"], html[data-theme="midnight"] body { background: #121
 .app { height: 100%; }
 /* 聊天面板打开时，主界面的悬浮 tabbar 会透过面板底部空隙露出，压到最底并隐藏 */
 body:has(#pane-wrap:not(.hidden)) .tabbar { opacity: 0; pointer-events: none; }
+
+/* ============ 嵌入 iframe 时的 iOS 高度兜底：JS 会写入 --app-h，杜绝底部空白 ============ */
+.app { height: var(--app-h, 100%) !important; }
+.pane-wrap { height: var(--app-h, 100%) !important; }
