@@ -6451,7 +6451,7 @@ function escapeHtml(str) {
     }
     __chatLayer = document.createElement('div');
     __chatLayer.id = 'camellia-chat-layer';
-    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);outline:2px solid red;outline-offset:-2px;';
+    __chatLayer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:-60px;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
     const chatFrame = document.createElement('iframe');
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');
@@ -6460,13 +6460,23 @@ function escapeHtml(str) {
     document.body.appendChild(__chatLayer);
     // 关键修复：iframe 里 iOS 自测高度会报矮导致底部空白。父页面是可靠基准：
     // 量出父页面真实可用高度，持续同步给层、iframe 和聊天页内部的 --app-h。
+    const getSafeB = function() {
+      try {
+        const p = document.createElement('div');
+        p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none;';
+        document.body.appendChild(p);
+        const v = p.offsetHeight; p.remove(); return v;
+      } catch (e) { return 0; }
+    };
     const fitNow = function() {
-      const h = Math.max(document.documentElement.clientHeight, window.innerHeight);
-      __chatLayer.style.height = h + 'px';
-      chatFrame.style.height = h + 'px';
+      const h = Math.max(document.documentElement.clientHeight, window.innerHeight); // 可视高度（不含小白条区）
+      __chatLayer.style.height = (h + 60) + 'px';
       try {
         const d = chatFrame.contentDocument;
-        if (d && d.documentElement) d.documentElement.style.setProperty('--app-h', h + 'px');
+        if (d && d.documentElement) {
+          d.documentElement.style.setProperty('--app-h', (h + 60) + 'px');
+          d.documentElement.style.setProperty('--safe-b', (60 + getSafeB()) + 'px');
+        }
       } catch (e) {}
     };
     fitNow();
