@@ -6452,11 +6452,11 @@ function escapeHtml(str) {
     __chatLayer = document.createElement('div');
     __chatLayer.id = 'camellia-chat-layer';
     __chatLayer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999900;background:#f5f5f7;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
-    const fr = document.createElement('iframe');
-    fr.src = 'chat/index.html';
-    fr.setAttribute('allow', 'clipboard-write');
-    fr.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;display:block;';
-    __chatLayer.appendChild(fr);
+    const chatFrame = document.createElement('iframe');
+    chatFrame.src = 'chat/index.html';
+    chatFrame.setAttribute('allow', 'clipboard-write');
+    chatFrame.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;display:block;';
+    __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
     // 按真实视口像素撑满，防止 iOS 上 100% 高度算不准导致底部漏出一截
     const __fitChatLayer = function() {
@@ -6468,14 +6468,8 @@ function escapeHtml(str) {
     __fitChatLayer();
     if (window.visualViewport) window.visualViewport.addEventListener('resize', __fitChatLayer);
     window.addEventListener('resize', __fitChatLayer);
-    const fr = document.createElement('iframe');
-    fr.src = 'chat/index.html';
-    fr.setAttribute('allow', 'clipboard-write');
-    fr.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;border:0;display:block;';
-    __chatLayer.appendChild(fr);
-    document.body.appendChild(__chatLayer);
     // 把父页面（桌面）的 iPhone 安全区高度传给聊天页（iframe 里 env() 读不到）
-    fr.addEventListener('load', function injectSafe() {
+    chatFrame.addEventListener('load', function injectSafe() {
       try {
         const probe = document.createElement('div');
         probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none;';
@@ -6485,7 +6479,7 @@ function escapeHtml(str) {
         document.body.appendChild(probeB);
         const t = probe.offsetHeight, b = probeB.offsetHeight;
         probe.remove(); probeB.remove();
-        const d = fr.contentDocument;
+        const d = chatFrame.contentDocument;
         if (d && d.documentElement) {
           d.documentElement.style.setProperty('--safe-t', t + 'px');
           d.documentElement.style.setProperty('--safe-b', b + 'px');
