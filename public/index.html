@@ -6443,6 +6443,7 @@ function escapeHtml(str) {
 
   // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
   let __chatLayer = null;
+  let __fitChatNow = null;
   function openPocketChat() {
     if (__chatLayer && document.body.contains(__chatLayer)) {
       __chatLayer.style.display = 'block';
@@ -6468,7 +6469,7 @@ function escapeHtml(str) {
         const v = p.offsetHeight; p.remove(); return v;
       } catch (e) { return 0; }
     };
-    const fitNow = function() {
+    __fitChatNow = function() {
       const h = Math.max(document.documentElement.clientHeight, window.innerHeight); // 可视高度（不含小白条区）
       __chatLayer.style.height = (h + 60) + 'px';
       try {
@@ -6479,11 +6480,11 @@ function escapeHtml(str) {
         }
       } catch (e) {}
     };
-    fitNow();
-    chatFrame.addEventListener('load', fitNow);
-    window.addEventListener('orientationchange', function(){ setTimeout(fitNow, 350); });
-    // 前几秒同步几次（覆盖键盘收起、旋转等 iOS 时机）
-    let __fn = 0; const __ft = setInterval(function(){ fitNow(); if (++__fn > 10) clearInterval(__ft); }, 400);
+    __fitChatNow();
+    chatFrame.addEventListener('load', __fitChatNow);
+    setTimeout(__fitChatNow, 600);
+    setTimeout(__fitChatNow, 1600);
+    window.addEventListener('orientationchange', function(){ setTimeout(__fitChatNow, 350); });
     requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
     try { if (navigator.vibrate) navigator.vibrate(12); } catch(e) {}
   }
