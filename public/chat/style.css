@@ -146,6 +146,27 @@ html[data-theme="midnight"] .app {
   letter-spacing: 0.04em; color: var(--text);
   text-align: center;
 }
+/* 页面大标题艺术字（所有 tab 统一）：衬线斜体花体感 + 小花点缀 */
+.hdr-title {
+  font-family: 'Snell Roundhand', 'Savoye LET', 'Brush Script MT', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 30px !important;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  text-align: center;
+  position: relative;
+}
+.hdr-title::after {
+  content: '❀';
+  font-family: serif;
+  font-style: normal;
+  font-size: 12px;
+  color: #F0B8CC;
+  margin-left: 8px;
+  vertical-align: 6px;
+  animation: moodHeart 3s ease-in-out infinite;
+}
 .hdr-lace { display:none !important; }
 
 /* ---------------- 底部悬浮胶囊 Tabbar ---------------- */
@@ -157,6 +178,7 @@ html[data-theme="midnight"] .app {
   height: 56px;
   border-radius: var(--r-pill);
   background: var(--card-glass);
+  box-shadow: 0 10px 30px -8px rgba(120,140,180,0.25), inset 0 1px 0 rgba(255,255,255,0.7);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
   backdrop-filter: blur(28px) saturate(200%);
   border: 1px solid rgba(255, 255, 255, 0.7);
@@ -242,9 +264,10 @@ html[data-theme="midnight"] .av {
 .searchbar-in {
   height: 40px;
   border-radius: var(--r-pill);
-  background: var(--card);
+  background: rgba(255,255,255,0.72);
   border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 14px -4px rgba(120,140,180,0.15), inset 0 1px 0 rgba(255,255,255,0.8);
   display: flex; align-items: center; gap: 9px;
   padding: 0 16px;
   color: var(--text-3);
@@ -267,12 +290,39 @@ html[data-theme="midnight"] .av {
   padding: 2px 0 6px;
   position: relative;
 }
-/* 页面晨光渐变光斑：粉蓝双色轻染 */
+/* 页面氛围光斑：粉霞 + 晨雾蓝 + 底部暖金，三层渐变 */
 .view[data-view="chat"] {
   background-image:
-    radial-gradient(60% 40% at 80% 0%, rgba(248,200,216,0.14) 0%, transparent 60%),
-    radial-gradient(50% 35% at 0% 30%, rgba(191,213,238,0.16) 0%, transparent 55%);
+    radial-gradient(70% 45% at 85% -5%, rgba(248,200,216,0.22) 0%, transparent 55%),
+    radial-gradient(55% 40% at -10% 28%, rgba(191,213,238,0.20) 0%, transparent 55%),
+    radial-gradient(65% 35% at 55% 105%, rgba(251,231,198,0.18) 0%, transparent 60%);
   background-repeat: no-repeat;
+  position: relative;
+}
+/* 散落星星：微光闪烁（水母主题下自动淡化，避免元素过多） */
+.view[data-view="chat"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(232,106,138,0.5) 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 12%, rgba(120,150,210,0.55) 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 90% 42%, rgba(232,106,138,0.4) 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 25% 55%, rgba(120,150,210,0.4) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 60% 72%, rgba(251,190,150,0.4) 50%, transparent 51%),
+    radial-gradient(1px 1px at 42% 30%, rgba(120,150,210,0.45) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 8% 80%, rgba(232,106,138,0.35) 50%, transparent 51%),
+    radial-gradient(1px 1px at 95% 62%, rgba(120,150,210,0.4) 50%, transparent 51%);
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+@keyframes starTwinkle {
+  0%,100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+/* 星夜主题下星星隐藏（有发光字符水母，不再叠加） */
+html[data-theme="midnight"] .view[data-view="chat"]::before {
+  display: none;
 }
 .ins-me-block {
   display: flex; align-items: center; gap: 13px;
@@ -302,8 +352,11 @@ html[data-theme="midnight"] .av {
 }
 .ins-stories {
   display: flex; align-items: flex-start; gap: 14px;
-  overflow-x: auto; padding: 2px 2px 10px;
+  overflow-x: auto; overflow-y: visible;
+  padding: 8px 2px 10px;
+  margin-top: -6px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 .ins-stories::-webkit-scrollbar { display: none; }
 .ins-story-item {
@@ -323,17 +376,17 @@ html[data-theme="midnight"] .av {
     #F8C8D8, #BFD5EE, #FBE7C6, #E4B9D4, #F8C8D8);
   display: flex; align-items: center; justify-content: center;
 }
-/* 星环旋转微光：像在呼吸的光晕 */
+/* 星环旋转微光：像在呼吸的光晕（内收 1px 防止在滚动容器内被裁出平边） */
 .ins-story-ring::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 50%;
   background: conic-gradient(from 0deg,
     rgba(248,200,216,0), rgba(248,200,216,0.8), rgba(191,213,238,0.8), rgba(248,200,216,0));
   animation: ringSpin 6s linear infinite;
   z-index: -1;
-  filter: blur(1px);
+  filter: blur(0.5px);
 }
 @keyframes ringSpin { to { transform: rotate(360deg); } }
 .ins-story-ring.me-ring {
@@ -389,10 +442,13 @@ html[data-theme="midnight"] .av {
   background: var(--card);
   border-radius: 22px;
   border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 8px 28px -6px rgba(120, 140, 180, 0.18), 0 2px 8px rgba(120,140,180,0.08);
   padding: 4px 4px;
   position: relative;
+  backdrop-filter: blur(6px);
 }
+.ins-chat-row { transition: background .15s ease, transform .15s ease, padding-left .2s ease; }
+.ins-chat-row:active { padding-left: 17px; }
 .ins-chat-row {
   display: flex; align-items: center; gap: 13px;
   padding: 13px 14px;
@@ -660,11 +716,13 @@ html[data-theme="midnight"] .duo-deco .chat-big-av::before {
   border-bottom: 1px solid var(--line);
 }
 .subpage-hdr .hdr-title {
+  font-family: 'Snell Roundhand', 'Savoye LET', 'Brush Script MT', 'Times New Roman', serif;
+  font-style: italic;
   text-align: left;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 22px !important;
+  font-weight: 500;
   color: var(--text);
-  margin-left: 2px;
+  margin-left: 6px;
   flex: 1 1 auto;
 }
 .subpage-hdr .hdr-right {
@@ -2189,12 +2247,14 @@ html[data-theme="midnight"] .pane {
   opacity: 0.85;
 }
 
-/* 悬浮极简顶栏导航按键（左侧返回+人设名字胶囊，右侧更多设置，显著下移露出顶部呼吸感） */
+/* 悬浮极简顶栏导航按键（左侧返回+人设名字胶囊，右侧更多设置）
+   位置用 min() 加保护帽：有刘海的设备也不会被压到白卡片圆角底下 */
 .chat-ins-nav-bar {
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: min(calc(var(--safe-t) + 44px), 66px);
+  left: 0; right: 0;
   z-index: 40;
-  padding: calc(var(--safe-t) + 52px) 16px 0;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2278,10 +2338,10 @@ html[data-theme="midnight"] .chat-hero-banner::before {
               linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(18,22,30,0.55) 100%);
 }
 
-/* 右上角/右侧可修改的心语文案（靠右展示，位于三点菜单下方） */
+/* 右侧可修改的心语文案（位于三点菜单下方、心电图上方） */
 .chat-hero-korean-text {
   position: absolute;
-  top: 98px;
+  top: 96px;
   right: 16px;
   left: auto;
   z-index: 25;
@@ -2377,6 +2437,166 @@ html[data-theme="midnight"] .chat-big-av {
 html[data-theme="midnight"] .chat-body {
   background: #12161E !important;
 }
+/* 邮票名片：三款可切换卡片 + 款式选择圆点 */
+.card-style-picker {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-top: 14px;
+}
+.card-style-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.6px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+  padding: 0;
+  transition: all .18s ease;
+  position: relative;
+}
+.card-style-dot.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(39, 59, 86, 0.25);
+}
+.card-style-dot:nth-child(1).active { background: #C9A87C; border-color: #C9A87C; }
+.card-style-dot:nth-child(2).active { background: #7FA8D9; border-color: #7FA8D9; }
+.card-style-dot:nth-child(3).active { background: #8B7FD4; border-color: #8B7FD4; }
+.card-style-name {
+  font-size: 11px; color: var(--text-3); font-weight: 500;
+  margin-left: 4px; letter-spacing: 0.04em;
+}
+
+/* ---- 款式二：人物小册（杂志感横向标签 + 大段介绍） ---- */
+.booklet-card {
+  background: #FDFDF9;
+  border-radius: 18px;
+  border: 1px solid rgba(140, 130, 100, 0.14);
+  box-shadow: 0 6px 24px rgba(40, 52, 72, 0.09);
+  padding: 20px 20px 16px;
+  color: #3A4354;
+  position: relative;
+}
+.booklet-card::before {
+  content: '';
+  position: absolute;
+  top: 10px; bottom: 10px; right: 8px;
+  width: 5px;
+  border-left: 1.6px dashed rgba(140, 130, 100, 0.35);
+}
+.booklet-head {
+  display: flex; align-items: center; gap: 14px;
+  padding-right: 16px;
+}
+.booklet-avatar {
+  width: 64px; height: 64px; flex: 0 0 auto;
+  border-radius: 16px; overflow: hidden;
+  border: 1px solid rgba(140, 130, 100, 0.2);
+  background: #EFEDE6;
+  box-shadow: 0 3px 10px rgba(40, 52, 72, 0.10);
+}
+.booklet-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.booklet-cname { font-size: 20px; font-weight: 700; color: #2E3646; letter-spacing: 0.02em; }
+.booklet-sub { font-size: 9.5px; color: #A8A08C; letter-spacing: 0.18em; margin-top: 4px; font-weight: 600; }
+.booklet-tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 14px; padding-right: 16px;
+}
+.booklet-tag {
+  font-size: 10.5px; font-weight: 600;
+  color: #6B6350;
+  background: rgba(201, 168, 124, 0.14);
+  border: 1px solid rgba(201, 168, 124, 0.28);
+  border-radius: 999px;
+  padding: 3.5px 10px;
+  letter-spacing: 0.03em;
+}
+.booklet-divider {
+  border-top: 1px dashed rgba(140, 130, 100, 0.3);
+  margin: 14px 0;
+}
+.booklet-body { padding-right: 16px; }
+.booklet-quote {
+  font-size: 13px; color: #7A7260; font-weight: 500;
+  font-style: italic; line-height: 1.6;
+  margin-bottom: 10px;
+}
+.booklet-desc {
+  font-size: 12px; color: #4A5262; line-height: 1.75;
+  white-space: pre-wrap; word-break: break-word;
+}
+.booklet-footer {
+  text-align: center; font-size: 9.5px;
+  letter-spacing: 0.22em; color: #B8B09A;
+  margin-top: 14px; font-weight: 600;
+}
+
+/* ---- 款式三：月光卡（深蓝夜空底、发光边、居中） ---- */
+.glow-card {
+  background: linear-gradient(160deg, #1D2436 0%, #232C42 55%, #1A2132 100%);
+  border-radius: 22px;
+  border: 1px solid rgba(140, 165, 210, 0.25);
+  box-shadow: 0 10px 32px rgba(15, 22, 38, 0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+  padding: 26px 22px 18px;
+  color: #D9E2F2;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.glow-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(140,165,210,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.glow-avatar {
+  width: 76px; height: 76px;
+  margin: 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2.5px solid rgba(160, 190, 235, 0.55);
+  box-shadow: 0 0 20px rgba(120, 160, 220, 0.35), 0 4px 14px rgba(0,0,0,0.4);
+  background: #2A3450;
+}
+.glow-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.glow-avatar .stamp-avatar-fallback {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 700; color: #AFC4E8;
+}
+.glow-cname {
+  font-size: 21px; font-weight: 700; color: #F0F4FB;
+  margin-top: 12px; letter-spacing: 0.03em;
+  text-shadow: 0 0 14px rgba(140, 175, 230, 0.5);
+}
+.glow-sub {
+  font-size: 11px; color: #8FA3C8; margin-top: 5px;
+  letter-spacing: 0.06em;
+}
+.glow-divider {
+  font-size: 10px; color: #6B7FA8; letter-spacing: 0.5em;
+  margin: 14px 0 10px;
+}
+.glow-body { text-align: left; padding: 0 6px; }
+.glow-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(140, 165, 210, 0.10);
+}
+.glow-row:last-child { border-bottom: none; }
+.glow-key {
+  font-size: 11px; color: #7E93BC; font-weight: 600;
+  flex: 0 0 58px; letter-spacing: 0.05em;
+}
+.glow-val { font-size: 12px; color: #D9E2F2; line-height: 1.5; word-break: break-word; }
+.glow-footer {
+  text-align: center; font-size: 9.5px;
+  letter-spacing: 0.22em; color: #5C6E96;
+  margin-top: 14px; font-weight: 600;
+}
+
 /* 邮票名片样式（复古邮票 + 齿孔边缘 + 全信息呈现） */
 .stamp-card {
   position: relative;
@@ -2802,14 +3022,6 @@ html[data-theme="midnight"] .msg-quote-card {
 .csb-btn.danger { color: var(--warn); }
 .csb-btn:active { background: var(--bg-subtle); }
 
-/* ============ 嵌入桌面时的底部兜底：杜绝任何情况下底部漏出异色 ============ */
-html { background: var(--bg) !important; }
-body { background: var(--bg) !important; }
-html[data-theme="midnight"], html[data-theme="midnight"] body { background: #12161E !important; }
-.app { height: 100%; }
-/* 聊天面板打开时，主界面的悬浮 tabbar 会透过面板底部空隙露出，压到最底并隐藏 */
-body:has(#pane-wrap:not(.hidden)) .tabbar { opacity: 0; pointer-events: none; }
-
-/* ============ 嵌入 iframe 时的 iOS 高度兜底：JS 会写入 --app-h，杜绝底部空白 ============ */
+/* ============ 嵌入桌面iframe时的高度兜底：父页面会注入 --app-h（真实像素），杜绝底部空白 ============ */
 .app { height: var(--app-h, 100%) !important; }
 .pane-wrap { height: var(--app-h, 100%) !important; }

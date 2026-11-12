@@ -4993,7 +4993,7 @@
         if (parsed && parsed.page1) {
           parsed.page1.forEach(it => {
             if (it.id === 'chat' || it.sheet === 'chat') {
-              delete it.href; /* 网页内层打开 */
+              delete it.href;
             }
             if (it.id === 'phone' || it.sheet === 'phone') {
               it.id = 'messages';
@@ -6441,6 +6441,7 @@ function escapeHtml(str) {
     }
   }
 
+  // 打开微聊（同一台小手机里的聊天应用）
   // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
   let __chatLayer = null;
   let __fitChatNow = null;
@@ -6448,6 +6449,7 @@ function escapeHtml(str) {
     if (__chatLayer && document.body.contains(__chatLayer)) {
       __chatLayer.style.display = 'block';
       requestAnimationFrame(() => { __chatLayer.style.opacity = '1'; __chatLayer.style.transform = 'translateX(0)'; });
+      if (typeof __fitChatNow === 'function') __fitChatNow();
       return;
     }
     __chatLayer = document.createElement('div');
@@ -6456,11 +6458,10 @@ function escapeHtml(str) {
     const chatFrame = document.createElement('iframe');
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');
-    chatFrame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;';
+    chatFrame.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;display:block;background:transparent;';
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
-    // 关键修复：iframe 里 iOS 自测高度会报矮导致底部空白。父页面是可靠基准：
-    // 量出父页面真实可用高度，持续同步给层、iframe 和聊天页内部的 --app-h。
+    // iOS Safari（浏览器模式）布局只到小白条上沿，导致层盖不到底：层下探60px，安全区双向补偿
     const getSafeB = function() {
       try {
         const p = document.createElement('div');
@@ -6470,7 +6471,7 @@ function escapeHtml(str) {
       } catch (e) { return 0; }
     };
     __fitChatNow = function() {
-      const h = Math.max(document.documentElement.clientHeight, window.innerHeight); // 可视高度（不含小白条区）
+      const h = Math.max(document.documentElement.clientHeight, window.innerHeight);
       __chatLayer.style.height = (h + 60) + 'px';
       try {
         const d = chatFrame.contentDocument;
@@ -6497,6 +6498,7 @@ function escapeHtml(str) {
       setTimeout(() => { if (__chatLayer) { __chatLayer.style.display = 'none'; } }, 380);
     }
   });
+
 
   
   // 查手机系统动态自填数据管理（初始 100% 干净零内置）

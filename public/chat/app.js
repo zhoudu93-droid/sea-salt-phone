@@ -144,29 +144,9 @@ function getInitAccounts() {
   if (Array.isArray(list)) {
     list = list.filter(a => a && a.id && !a.isMaskOnly && (!a.id.startsWith('mask_')));
   }
-  // 【关键防崩保护】：如果账号列表为空，绝对不能留空，自动生成一个完整的宋遇默认账号
+  // 账号列表为空：保持为空，进入注册页让用户创建自己的账号（不再内置默认账号）
   if (!list || !list.length) {
-    const defaultAccId = 'acc_' + uid();
-    list = [{
-      id: defaultAccId,
-      username: 'SY1125',
-      password: '',
-      nickname: '宋遇',
-      avatar: '',
-      sign: '我们期盼同一个冬',
-      masks: [{
-        id: 'mask_' + defaultAccId,
-        name: '宋遇',
-        gender: '女',
-        birthday: '11月25日',
-        age: '20',
-        appearance: '黑色微卷长发，眼眸清澈',
-        tone: '温和轻快，偶尔有些傲娇',
-        background: '我们期盼同一个冬',
-        avatar: ''
-      }],
-      createdAt: Date.now()
-    }];
+    list = [];
   }
   return list;
 }
@@ -190,14 +170,17 @@ const S = {
   openId:   null
 };
 
-// 永远确保账号安全有效
+// 永远确保账号安全有效（无内置默认账号：为空时走注册页）
 if (!S.accounts || !S.accounts.length) {
-  S.accounts = getInitAccounts();
+  S.accounts = [];
+  S.curUid = null;
+  S.account = null;
+} else {
+  if (!S.curUid || !S.accounts.find(a => a.id === S.curUid)) {
+    S.curUid = S.accounts[0].id;
+  }
+  S.account = S.accounts.find(a => a.id === S.curUid) || S.accounts[0];
 }
-if (!S.curUid || !S.accounts.find(a => a.id === S.curUid)) {
-  S.curUid = S.accounts[0].id;
-}
-S.account = S.accounts.find(a => a.id === S.curUid) || S.accounts[0];
 
 // 载入特定账号专属的聊天记录、人设和朋友圈
 function loadAccountData(uid) {
@@ -821,7 +804,10 @@ function renderTab(tab) {
   $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   $$('.view').forEach(v => v.classList.toggle('hidden', v.dataset.view !== tab));
   const meta = TAB_META[tab] || { title: 'Messages', left: 'back', right: 'plane' };
-  $('#hdr-title').textContent = meta.title;
+  const titleEl = $('#hdr-title');
+  titleEl.textContent = meta.title;
+  // 信笺页启用大号艺术字排版，其他页恢复正常标题
+  titleEl.classList.toggle('ins-art', tab === 'chat');
   // 头部按钮
   const L = $('#hdr-left'), R = $('#hdr-right');
   const icon = (id, color) => `<svg ${color ? `style="color:${color}"` : ''}><use href="#${id}"></use></svg>`;
@@ -1274,67 +1260,194 @@ function personaEditor(p, isNew, backFn) {
   });
 }
 
-/* ---------------- 邮票名片页（单开独立全屏页面，所有信息以一张复古邮票自我介绍呈现） ---------------- */
+/* ---------------- 邮票名片页（三款可切换卡片：邮票 / 小册 / 月光卡） ---------------- */
+const CARD_STYLES = ['stamp', 'booklet', 'glow'];
+
+function getCardStyle(pid) {
+  S.prefs.cardStyles = S.prefs.cardStyles || {};
+  return S.prefs.cardStyles[pid] || 'stamp';
+}
+function setCardStyle(pid, style) {
+  S.prefs.cardStyles = S.prefs.cardStyles || {};
+  S.prefs.cardStyles[pid] = style;
+  persist();
+}
+
+function cardStyleName(s) {
+  return { stamp: '复古邮票', booklet: '人物小册', glow: '月光卡' }[s] || '复古邮票';
+}
+
+/* ---------------- 卡片编辑器（仅卡片展示字段：签名 / 性格 / 喜好 / 心语） ---------------- */
+function cardEditor(p, backFn) {
+  openSubpage({
+    title: '编辑卡片',
+    onBack: backFn || closeSubpage,
+    rightBtn: `
+      <button class="hdr-btn" id="ce-save" style="color:var(--accent);font-weight:600;font-size:14px;width:auto;padding:0 6px;">
+        保存
+      </button>
+    `,
+    bodyHtml: `
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;padding:0 2px;">
+        这里只编辑名片上展示的内容——TA 在卡片上如何自我介绍。性格设定与说话方式请到「编辑人设」里调整。
+      </div>
+      <div class="field"><div class="field-label">个性签名（卡片上的一句话）</div>
+        <input class="field-input" id="ce-sign" maxlength="40" value="${esc(p.sign || '')}" placeholder="一句话介绍 TA"></div>
+      <div class="field"><div class="field-label">性格（名片上的性格标签）</div>
+        <input class="field-input" id="ce-personality" maxlength="30" value="${esc(p.personality || '')}" placeholder="例如：温柔 / 慢热 / 有点傲娇"></div>
+      <div class="field"><div class="field-label">喜好（TA 喜欢什么）</div>
+        <input class="field-input" id="ce-likes" maxlength="40" value="${esc(p.likes || '')}" placeholder="例如：拿铁 · 老歌 · 下雨天"></div>
+      <div class="field"><div class="field-label">背景心语（聊天页背景上的那句话）</div>
+        <input class="field-input" id="ce-korean" maxlength="40" value="${esc(p.koreanQuote || '')}" placeholder="例如：너와 함께 ...! 🤍"></div>
+    `,
+    onMount() {
+      $('#ce-save').onclick = () => {
+        p.sign = $('#ce-sign').value.trim();
+        p.personality = $('#ce-personality').value.trim();
+        p.likes = $('#ce-likes').value.trim();
+        p.koreanQuote = $('#ce-korean').value.trim();
+        savePersonas(); persist();
+        if (backFn) backFn(); else closeSubpage();
+        toast('卡片已更新 ♡');
+      };
+    }
+  });
+}
+
+function renderCardHTML(style, p, d, rows) {
+  const avatarHTML = p.avatar
+    ? `<img src="${p.avatar}">`
+    : `<div class="stamp-avatar-fallback">${esc(cleanFirstChar(p.name))}</div>`;
+  const emptyHint = '<div style="font-size:12px;color:var(--text-4);text-align:center;padding:10px 0;">这张卡片还空着，去「编辑卡片」写下 TA 的故事吧</div>';
+
+  if (style === 'booklet') {
+    const tags = [
+      p.remark ? '备注 · ' + p.remark : '',
+      p.wxid ? p.wxid : '',
+      p.likes ? '♡ ' + p.likes : '',
+      p.personality ? '✦ ' + p.personality : ''
+    ].filter(Boolean);
+    return `
+      <div class="booklet-card">
+        <div class="booklet-head">
+          <div class="booklet-avatar">${avatarHTML}</div>
+          <div class="booklet-name-block">
+            <div class="booklet-cname">${esc(d.name)}</div>
+            <div class="booklet-sub">PERSONAL BOOKLET · 山茶信笺</div>
+          </div>
+        </div>
+        ${tags.length ? `<div class="booklet-tags">${tags.map(t => `<span class="booklet-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        <div class="booklet-divider"></div>
+        <div class="booklet-body">
+          ${p.sign ? `<div class="booklet-quote">「${esc(p.sign)}」</div>` : ''}
+          ${p.prompt ? `<div class="booklet-desc">${esc(p.prompt)}</div>` : ''}
+          ${(!p.sign && !p.prompt) ? emptyHint : ''}
+        </div>
+        <div class="booklet-footer">— TA 的专属小册 —</div>
+      </div>`;
+  }
+
+  if (style === 'glow') {
+    return `
+      <div class="glow-card">
+        <div class="glow-avatar">${avatarHTML}</div>
+        <div class="glow-cname">${esc(d.name)}</div>
+        <div class="glow-sub">${esc(d.sign || '山茶信笺 · CAMELLIA')}</div>
+        <div class="glow-divider">✦ ✦ ✦</div>
+        <div class="glow-body">
+          ${rows}
+          ${!rows ? emptyHint : ''}
+        </div>
+        <div class="glow-footer">— 月光下也认识 TA —</div>
+      </div>`;
+  }
+
+  return `
+    <div class="stamp-card">
+      <div class="stamp-head">
+        <div class="stamp-avatar">${avatarHTML}</div>
+        <div class="stamp-name-block">
+          <div class="stamp-cname">${esc(d.name)}</div>
+          <div class="stamp-ename">CAMELLIA · PERSONA STAMP</div>
+        </div>
+        <div class="stamp-postmark">
+          <span>山茶信笺</span>
+          <span>${new Date(p.createdAt || Date.now()).toLocaleDateString('zh-CN')}</span>
+        </div>
+      </div>
+      <div class="stamp-divider"></div>
+      <div class="stamp-body">
+        ${rows || emptyHint}
+      </div>
+      <div class="stamp-footer">— 一枚关于 TA 的邮票 —</div>
+    </div>`;
+}
+
 function openProfile(pid, backFn) {
   const p = S.personas.find(x => x.id === pid);
   if (!p) return;
   const d = displayOf(p);
-  const rows = [];
+
+  // 人物介绍信息（去掉温度与拍一拍，新增喜好 / 性格）
   const infoRows = [
     ['微信号', p.wxid || '未设置'],
     p.remark ? ['备注', p.remark] : null,
     p.sign ? ['个性签名', p.sign] : null,
-    p.pokeSuffix ? ['拍一拍后缀', p.pokeSuffix] : null,
     p.koreanQuote ? ['背景心语', p.koreanQuote] : null,
-    ['温度', typeof p.temp === 'number' ? p.temp.toFixed(2) : '0.85']
+    p.likes ? ['喜好', p.likes] : null,
+    p.personality ? ['性格', p.personality] : null
   ].filter(Boolean);
-  infoRows.forEach(([k, v]) => rows.push(`
+
+  let rows = '';
+  infoRows.forEach(([k, v]) => rows += `
     <div class="stamp-info-row">
       <span class="stamp-info-key">${esc(k)}</span>
       <span class="stamp-info-val">${esc(v)}</span>
     </div>
-  `));
-  if (p.prompt) rows.push(`
+  `);
+  if (p.prompt) rows += `
     <div class="stamp-info-row stamp-info-block">
       <span class="stamp-info-key">人设</span>
       <span class="stamp-info-val stamp-pre">${esc(p.prompt)}</span>
     </div>
-  `);
+  `;
+
+  const style = getCardStyle(pid);
+  const dots = CARD_STYLES.map(s =>
+    `<button class="card-style-dot ${s === style ? 'active' : ''}" data-style="${s}" title="${cardStyleName(s)}"></button>`
+  ).join('');
 
   openSubpage({
     title: '邮票名片',
     onBack: backFn || closeSubpage,
     bodyHtml: `
-      <div class="stamp-card">
-        <!-- 邮票齿孔边缘由 CSS 伪元素绘制 -->
-        <div class="stamp-head">
-          <div class="stamp-avatar">
-            ${p.avatar ? `<img src="${p.avatar}">` : `<div class="stamp-avatar-fallback">${esc(cleanFirstChar(p.name))}</div>`}
-          </div>
-          <div class="stamp-name-block">
-            <div class="stamp-cname">${esc(d.name)}</div>
-            <div class="stamp-ename">CAMELLIA · PERSONA STAMP</div>
-          </div>
-          <div class="stamp-postmark">
-            <span>山茶信笺</span>
-            <span>${new Date(p.createdAt || Date.now()).toLocaleDateString('zh-CN')}</span>
-          </div>
-        </div>
-        <div class="stamp-divider"></div>
-        <div class="stamp-body">
-          ${rows.join('') || '<div style="font-size:12px;color:var(--text-4);text-align:center;padding:10px 0;">这张邮票还空着，去「编辑完整人设」写下 TA 的故事吧</div>'}
-        </div>
-        <div class="stamp-footer">— 一枚关于 TA 的邮票 —</div>
+      <div id="pf-card-mount">${renderCardHTML(style, p, d, rows)}</div>
+
+      <!-- 卡片款式切换圆点 -->
+      <div class="card-style-picker">
+        ${dots}
+        <span class="card-style-name" id="pf-style-name">${cardStyleName(style)}</span>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:16px;">
+      <div style="display:flex;gap:10px;margin-top:12px;">
         <button class="wal-act" id="pf-chat" style="flex:1;">发消息</button>
-        <button class="wal-act" id="pf-edit" style="flex:1;">编辑资料</button>
+        <button class="wal-act" id="pf-edit" style="flex:1;">编辑卡片</button>
       </div>
     `,
     onMount() {
       $('#pf-chat').onclick = () => { closeSubpage(); openChat(pid); };
-      $('#pf-edit').onclick = () => { personaEditor(p, false, () => openProfile(pid, backFn)); };
+      $('#pf-edit').onclick = () => { cardEditor(p, () => openProfile(pid, backFn)); };
+
+      // 款式切换
+      document.querySelectorAll('.card-style-dot').forEach(btn => {
+        btn.onclick = () => {
+          const s = btn.dataset.style;
+          setCardStyle(pid, s);
+          document.querySelectorAll('.card-style-dot').forEach(b => b.classList.toggle('active', b === btn));
+          $('#pf-style-name').textContent = cardStyleName(s);
+          $('#pf-card-mount').innerHTML = renderCardHTML(s, p, d, rows);
+        };
+      });
     }
   });
 }
@@ -3411,6 +3524,20 @@ function renderMe(host) {
 
     <div style="height: 14px;"></div>
 
+    <!-- 花瓣特效开关 -->
+    <div class="profile-menu-card" style="margin:0 0 14px 0;">
+      <div class="profile-menu-item" id="me-petal-toggle" style="cursor:default;">
+        <div class="profile-menu-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5C16.5 5.5 19 9.5 19 13.5 19 18 15.8 21.5 12 21.5 8.2 21.5 5 18 5 13.5 5 9.5 7.5 5.5 12 2.5Z"></path></svg>
+        </div>
+        <div class="profile-menu-label">飘落花瓣</div>
+        <div class="profile-menu-extra" id="me-petal-state">${S.prefs.petals === false ? '关闭' : '开启'}</div>
+        <div class="tg-switch ${S.prefs.petals === false ? '' : 'on'}" id="me-petal-switch" style="flex:0 0 auto;">
+          <div class="tg-knob"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 菜单列表组（钱包、面具库、表情包、收藏、设置） -->
     <div class="profile-menu-card" style="margin:0">
       <div class="profile-menu-item" id="me-wallet">
@@ -3497,6 +3624,20 @@ function renderMe(host) {
   $('#me-sticker').onclick = openStickers;
   $('#me-fav').onclick = openFavorites;
   $('#me-settings').onclick = showApiStatus;
+
+  // 花瓣特效开关
+  const petalSwitch = $('#me-petal-switch');
+  petalSwitch.onclick = () => {
+    petalSwitch.classList.toggle('on');
+    const on = petalSwitch.classList.contains('on');
+    S.prefs.petals = on;
+    persist();
+    $('#me-petal-state').textContent = on ? '开启' : '关闭';
+    const layer = document.getElementById('petal-bg-layer');
+    if (layer) layer.style.opacity = on ? '1' : '0';
+    if (window.__petalSetEnabled) window.__petalSetEnabled(on);
+    toast(on ? '花瓣已飘起 ♡' : '花瓣已收起');
+  };
 }
 
 /* ---------------- 面具库管理（单开独立全屏页面，绝不弹半栏） ---------------- */
@@ -4150,4 +4291,3 @@ function openStickerRenamePage(item, idx) {
    执行启动
    ================================================================ */
 boot();
-
