@@ -6467,9 +6467,15 @@ function escapeHtml(str) {
     const splash = document.createElement('div');
     splash.id = 'chat-splash';
     splash.style.cssText = 'position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(180deg,#F6F8FB 0%,#EDF2F8 100%);transition:opacity .45s ease;';
-    splash.innerHTML = '<div style="width:52px;height:52px;border-radius:50%;background:url(\'chat/camellia_cover.svg\') center/cover;animation:camelliaBreath 1.6s ease-in-out infinite;"></div>'
-      + '<div style="font-size:12.5px;color:#8E9BAE;letter-spacing:2px;">信笺装帧中 · · ·</div>'
-      + '<style>@keyframes camelliaBreath{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.12);opacity:1}}</style>';
+    splash.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="animation:camelliaBreath 1.8s ease-in-out infinite">'
+      + '<path d="M32 30 C24 18, 30 8, 32 4 C34 8, 40 18, 32 30Z" fill="#DCE7F5"/>'
+      + '<path d="M32 30 C44 18, 54 24, 58 30 C54 32, 44 36, 32 30Z" fill="#E8F0FA"/>'
+      + '<path d="M32 30 C20 36, 10 32, 6 30 C10 24, 20 18, 32 30Z" fill="#DCE7F5"/>'
+      + '<path d="M32 30 C40 42, 36 54, 32 58 C28 54, 24 42, 32 30Z" fill="#E8F0FA"/>'
+      + '<circle cx="32" cy="30" r="4.5" fill="#F4E19C"/>'
+      + '</svg>'
+      + '<div style="font-size:12.5px;color:#B8C4D4;letter-spacing:2px;">信笺装帧中 · · ·</div>'
+      + '<style>@keyframes camelliaBreath{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.1);opacity:1}}</style>';
     __chatLayer.appendChild(splash);
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
