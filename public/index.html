@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="prefetch" href="chat/index.html" as="document">
-<link rel="prefetch" href="chat/style.css?v=105" as="style">
-<link rel="prefetch" href="chat/app.js?v=105" as="script">
-<link rel="prefetch" href="chat/camellia_cover.svg" as="image">
+<link rel="prefetch" href="chat/style.css?v=122" as="style">
+<link rel="prefetch" href="chat/app.js?v=122" as="script">
   <title>海盐白山茶 · 浮岛与微风</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3834,10 +3833,10 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
         </div>
       </div>
-      <!-- 2. 查手机 (月白暗格) -->
-      <div class="dock-item" onclick="openCyPhone()">
-        <div class="dock-icon" id="dock-icon-cy_phone">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3.5"></rect><circle cx="12" cy="17" r="1.5"></circle><line x1="10" y1="6" x2="14" y2="6"></line></svg>
+      <!-- 2. 人设馆（创建与管理人设；查手机在桌面第一页的月白暗格） -->
+      <div class="dock-item" onclick="openPersonaStudio()">
+        <div class="dock-icon" id="dock-icon-persona">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path></svg>
         </div>
       </div>
       <!-- 3. 世界书 (灵魂秘卷) -->
@@ -6446,7 +6445,7 @@ function escapeHtml(str) {
   }
 
   // 打开微聊（同一台小手机里的聊天应用）
-  // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转）
+  // 打开微聊（同一台小手机里的聊天应用 —— 网页内全屏层，不再跳转；聊天页自带首屏动画）
   let __chatLayer = null;
   let __fitChatNow = null;
   function openPocketChat() {
@@ -6463,29 +6462,9 @@ function escapeHtml(str) {
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');
     chatFrame.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;display:block;background:transparent;';
-    // 启动画面：替代白屏，iframe 就绪后淡出
-    const splash = document.createElement('div');
-    splash.id = 'chat-splash';
-    splash.style.cssText = 'position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(180deg,#F6F8FB 0%,#EDF2F8 100%);transition:opacity .45s ease;';
-    splash.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="animation:camelliaBreath 1.8s ease-in-out infinite">'
-      + '<path d="M32 30 C24 18, 30 8, 32 4 C34 8, 40 18, 32 30Z" fill="#DCE7F5"/>'
-      + '<path d="M32 30 C44 18, 54 24, 58 30 C54 32, 44 36, 32 30Z" fill="#E8F0FA"/>'
-      + '<path d="M32 30 C20 36, 10 32, 6 30 C10 24, 20 18, 32 30Z" fill="#DCE7F5"/>'
-      + '<path d="M32 30 C40 42, 36 54, 32 58 C28 54, 24 42, 32 30Z" fill="#E8F0FA"/>'
-      + '<circle cx="32" cy="30" r="4.5" fill="#F4E19C"/>'
-      + '</svg>'
-      + '<div style="font-size:12.5px;color:#B8C4D4;letter-spacing:2px;">信笺装帧中 · · ·</div>'
-      + '<style>@keyframes camelliaBreath{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.1);opacity:1}}</style>';
-    __chatLayer.appendChild(splash);
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
-    chatFrame.addEventListener('load', function(){
-      setTimeout(function(){
-        splash.style.opacity = '0';
-        setTimeout(function(){ if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 500);
-      }, 120);
-    });
-    // iOS Safari（浏览器模式）布局只到小白条上沿，导致层盖不到底：层下探60px，安全区双向补偿
+    // iOS Safari（浏览器模式）布局只到小白条上沿：层下探60px，安全区双向补偿给聊天页
     const getSafeB = function() {
       try {
         const p = document.createElement('div');
@@ -6522,7 +6501,6 @@ function escapeHtml(str) {
       setTimeout(() => { if (__chatLayer) { __chatLayer.style.display = 'none'; } }, 380);
     }
   });
-
 
   
   // 查手机系统动态自填数据管理（初始 100% 干净零内置）
@@ -8607,5 +8585,143 @@ function escapeHtml(str) {
 })();
 
 </script>
+
+<script>
+/* 人设馆 · Persona Studio —— 桌面端人设管理中心（数据与山茶信笺共用） */
+(function () {
+  var PS_K = { accounts: 'pchat_accounts_list_v2', curUid: 'pchat_cur_uid_v2' };
+  function psEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function psUid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function psReadJSON(key, dft){ try{ var v=JSON.parse(localStorage.getItem(key)); return v==null?dft:v; }catch(e){ return dft; } }
+  function psPersonaKey(){ var u=localStorage.getItem(PS_K.curUid); return u ? ('pchat_'+u+'_personas') : null; }
+  function psGetList(){ var k=psPersonaKey(); if(!k) return []; var a=psReadJSON(k,[]); return Array.isArray(a)?a:[]; }
+  function psSaveList(arr){ var k=psPersonaKey(); if(!k){ alert('还没有登录过山茶信笺，先去信笺里注册/登录一次，人设才有归属的账号哦'); return false; } localStorage.setItem(k, JSON.stringify(arr)); return true; }
+  function psInitial(n){ return (n||'').trim().charAt(0) || '茶'; }
+  function psAvatarHtml(p){
+    if(p && p.avatar) return '<img src="'+p.avatar+'" style="width:46px;height:46px;border-radius:50%;object-fit:cover;">';
+    return '<div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#f7cdd8,#eadcf7);color:#b06a86;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;">'+psEsc(psInitial(p&&p.name))+'</div>';
+  }
+
+  window.openPersonaStudio = function(){
+    var root = document.getElementById('persona-studio');
+    if(!root) return;
+    root.style.display = 'flex';
+    window.renderPersonaList();
+  };
+  window.closePersonaStudio = function(){
+    var root = document.getElementById('persona-studio');
+    if(root) root.style.display = 'none';
+  };
+
+  window.renderPersonaList = function(){
+    var body = document.getElementById('ps-body');
+    if(!body) return;
+    var list = psGetList();
+    var addBtn = document.getElementById('ps-add-btn');
+    if(addBtn) addBtn.style.display = '';
+    if(!list.length){
+      body.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#9a8f96;">'
+        + '<svg viewBox="0 0 24 24" style="width:52px;height:52px;fill:none;stroke:#d9c3cc;stroke-width:1.6;margin-bottom:14px;"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path></svg>'
+        + '<div style="font-size:15px;font-weight:600;margin-bottom:6px;">还没有人设</div>'
+        + '<div style="font-size:12.5px;line-height:1.7;">点右上角「＋ 新建人设」，写一个他/她出来。<br>建好后在山茶信笺里用微信号就能找到 TA。</div></div>';
+      return;
+    }
+    var rows = list.map(function(p,i){
+      return '<div class="ps-persona-row" data-i="'+i+'" style="display:flex;align-items:center;gap:12px;background:var(--glass-card);border:1px solid var(--glass-border);border-radius:16px;padding:12px 14px;cursor:pointer;">'
+        + psAvatarHtml(p)
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:15px;font-weight:600;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+psEsc(p.remark||p.name||'未命名')+'</div>'
+        + '<div style="font-size:11.5px;color:#9a8f96;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">微信号：'+psEsc(p.wxid||'未设置')+(p.sign?(' · '+psEsc(p.sign)):'')+'</div>'
+        + '</div>'
+        + '<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#c5b8bf;stroke-width:2;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg></div>';
+    }).join('');
+    body.innerHTML = '<div style="font-size:12px;color:#9a8f96;margin-bottom:12px;">共 '+list.length+' 个人设 · 新建后去山茶信笺的「密友」页搜微信号找到 TA</div>'
+      + '<div style="display:flex;flex-direction:column;gap:10px;">'+rows+'</div>';
+    Array.prototype.forEach.call(body.querySelectorAll('.ps-persona-row'), function(row){
+      row.onclick = function(){ window.psShowEditor(parseInt(row.dataset.i,10)); };
+    });
+  };
+
+  window.psShowEditor = function(idx){
+    var body = document.getElementById('ps-body');
+    if(!body) return;
+    var list = psGetList();
+    var isNew = (typeof idx !== 'number');
+    var p = isNew ? { id:'p_'+psUid(), name:'', wxid:'wxid_'+Math.random().toString(36).slice(2,10), avatar:'', sign:'', prompt:'', greeting:'', remark:'', pokeSuffix:'', temp:0.85, timeAware:true, createdAt:Date.now() } : list[idx];
+    if(!p) return;
+    var av = p.avatar || '';
+    var addBtn = document.getElementById('ps-add-btn');
+    if(addBtn) addBtn.style.display = 'none';
+    var f = function(id, label, inner){ return '<div><div style="font-size:11.5px;font-weight:600;color:#9a8f96;margin-bottom:5px;">'+label+'</div>'+inner+'</div>'; };
+    var inp = function(id, val, ph){ return '<input id="'+id+'" maxlength="30" value="'+psEsc(val)+'" placeholder="'+ph+'" style="width:100%;box-sizing:border-box;border:1px solid var(--glass-border);border-radius:12px;padding:11px 13px;font-size:14px;background:var(--glass-card);color:var(--text-main);outline:none;">'; };
+    var ta = function(id, val, ph, rows){ return '<textarea id="'+id+'" rows="'+rows+'" placeholder="'+ph+'" style="width:100%;box-sizing:border-box;border:1px solid var(--glass-border);border-radius:12px;padding:11px 13px;font-size:13.5px;line-height:1.6;background:var(--glass-card);color:var(--text-main);outline:none;resize:vertical;">'+psEsc(val)+'</textarea>'; };
+
+    body.innerHTML = '<div style="display:flex;justify-content:center;margin-bottom:16px;">'
+      + '<label id="ps-av-pick" style="width:76px;height:76px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#f7cdd8,#eadcf7);display:flex;align-items:center;justify-content:center;cursor:pointer;border:3px solid #fff;box-shadow:0 6px 18px -6px rgba(180,120,150,.35);">'
+      + '<div id="ps-av-view">'+(av ? '<img src="'+av+'" style="width:100%;height:100%;object-fit:cover;">' : '<span style="font-size:11px;color:#b06a86;">换头像</span>')+'</div></label>'
+      + '<input type="file" id="ps-av-input" accept="image/*" hidden></div>'
+      + '<div style="display:flex;flex-direction:column;gap:12px;">'
+      + f('n','名字', inp('ps-f-name', p.name||'', 'TA 叫什么'))
+      + f('r','备注（列表里显示的名字，可留空）', inp('ps-f-remark', p.remark||'', '例如：阿愿'))
+      + f('w','微信号（信笺里靠它找到 TA）', inp('ps-f-wxid', p.wxid||'', 'wxid_xxx'))
+      + f('s','个性签名', inp('ps-f-sign', p.sign||'', '一句话'))
+      + f('p','人设 · 他是谁（性格 / 身份 / 说话方式）', ta('ps-f-prompt', p.prompt||'', '越具体越像他。例如：习惯先把别人的情绪安顿好，话不多，但每一句都认真。', 5))
+      + f('g','开场白（第一次打开对话时 TA 的话，可留空）', ta('ps-f-greeting', p.greeting||'', '留空则等你先开口', 3))
+      + f('k','拍一拍后缀', inp('ps-f-poke', p.pokeSuffix||'', '例如：的小脑袋'))
+      + '</div>'
+      + '<button id="ps-save" style="margin-top:18px;width:100%;border:none;border-radius:14px;padding:13px;font-size:14.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,#f7b2c4,#e88aa5);cursor:pointer;">保存'+(isNew?'并创建':'修改')+'</button>'
+      + (isNew ? '' : '<button id="ps-del" style="margin-top:10px;width:100%;border:none;border-radius:14px;padding:12px;font-size:13.5px;font-weight:600;color:#c4635c;background:rgba(196,99,92,.08);cursor:pointer;">删除这个人</button>')
+      + '<button onclick="renderPersonaList()" style="margin-top:10px;width:100%;border:none;background:none;color:#9a8f96;font-size:12.5px;cursor:pointer;padding:6px;">返回列表</button>';
+
+    document.getElementById('ps-av-pick').onclick = function(){ document.getElementById('ps-av-input').click(); };
+    document.getElementById('ps-av-input').onchange = function(e){
+      var file = e.target.files[0]; if(!file) return;
+      var r = new FileReader();
+      r.onload = function(){ av = r.result; document.getElementById('ps-av-view').innerHTML = '<img src="'+av+'" style="width:100%;height:100%;object-fit:cover;">'; };
+      r.readAsDataURL(file);
+    };
+    document.getElementById('ps-save').onclick = function(){
+      var name = document.getElementById('ps-f-name').value.trim();
+      if(!name){ alert('总得有个名字'); return; }
+      p.name = name;
+      p.remark = document.getElementById('ps-f-remark').value.trim();
+      p.wxid = document.getElementById('ps-f-wxid').value.trim() || p.wxid;
+      p.sign = document.getElementById('ps-f-sign').value.trim();
+      p.prompt = document.getElementById('ps-f-prompt').value.trim();
+      p.greeting = document.getElementById('ps-f-greeting').value.trim();
+      p.pokeSuffix = document.getElementById('ps-f-poke').value.trim();
+      p.avatar = av;
+      delete p.seeded;
+      var cur = psGetList();
+      if(isNew) cur.push(p);
+      else { var at = -1; for(var i=0;i<cur.length;i++){ if(cur[i].id===p.id){ at=i; break; } } if(at>=0) cur[at]=p; else cur.push(p); }
+      if(psSaveList(cur)){
+        var msg = '已保存 ♡ 信笺里搜「'+p.wxid+'」找到 TA';
+        if(window.toast) window.toast(msg); else alert(msg);
+        window.renderPersonaList();
+      }
+    };
+    var delBtn = document.getElementById('ps-del');
+    if(delBtn) delBtn.onclick = function(){
+      if(!confirm('确定删除「'+(p.remark||p.name)+'」吗？聊天记录会保留，但这个人会从列表消失。')) return;
+      psSaveList(psGetList().filter(function(x){ return x.id !== p.id; }));
+      window.renderPersonaList();
+    };
+  };
+})();
+</script>
+
 </body>
 </html>
+
+<!-- ================= 人设馆 · Persona Studio（创建/管理人设；数据与山茶信笺共用） ================= -->
+<div id="persona-studio" style="position:fixed;inset:0;z-index:9600;background:var(--sea-bg);display:none;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 12px;background:rgba(255,255,255,0.82);backdrop-filter:blur(20px);border-bottom:1px solid var(--glass-border);">
+    <button onclick="closePersonaStudio()" style="width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:none;stroke:#555;stroke-width:2;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    <div style="flex:1;font-size:17px;font-weight:700;color:var(--text-main);">人设馆</div>
+    <button onclick="psShowEditor()" id="ps-add-btn" style="border:none;background:linear-gradient(135deg,#f7b2c4,#e88aa5);color:#fff;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer;">＋ 新建人设</button>
+  </div>
+  <div id="ps-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 24px);"></div>
+</div>

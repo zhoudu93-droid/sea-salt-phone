@@ -73,7 +73,7 @@ function save(k, v) {
     console.warn('localStorage save warning:', e);
     // 如果是配额超限错误，尝试轻度提示
     if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
-      toast('⚠️ 存储空间接近上限，请避免单张过大原图');
+      toast('存储空间接近上限，请避免单张过大原图');
     }
   }
 }
@@ -608,7 +608,7 @@ function renderAuth() {
       persist();
       $('#boot').classList.add('hidden');
       startApp();
-      toast('欢迎来到山茶信笺 ♡');
+      toast('欢迎来到山茶信笺 v121 ♡');
     } else {
       // 登录支持手机号、验证码或密码登录
       if (!acc && !phone) { toast('请输入手机号或账号'); return; }
@@ -777,6 +777,8 @@ function startApp() {
   $('#app').classList.remove('hidden');
   bindTabs();
   renderTab(S.tab);
+  // 主界面就绪 → 淡出首屏加载动画
+  if (window.__hideSplash) window.__hideSplash();
 }
 
 /* ---------------- 标签栏 ---------------- */
@@ -843,12 +845,12 @@ function headerAction(tab) {
     openSheet({
       title: '开始一段对话',
       items: [
-        { icon:'i-plus',   text:'添加一个人设', act: addPersona },
-        { icon:'i-search', text:'搜索聊天记录', act: () => toast('搜索功能稍后上线') }
+        { icon:'i-search', text:'按微信号找人', act: () => renderTab('contacts') }
       ]
     });
   } else if (tab === 'contacts') {
-    addPersona();
+    renderTab('contacts');
+    setTimeout(() => { const inp = $('#ct-wxid-search'); if (inp) inp.focus(); }, 150);
   } else if (tab === 'discover') {
     promptAddMiniApp();
   } else if (tab === 'moments') {
@@ -899,7 +901,7 @@ function openSheet(cfg) {
 function closeSheet() { $('#sheet-wrap').classList.add('hidden'); }
 
 /* ---------------- 全屏独立子页面管理（面具、钱包、收藏、聊天设置等完整单开页面） ---------------- */
-function openSubpage({ title, rightBtn, bodyHtml, onMount, onBack }) {
+function openSubpage({ title, rightBtn, bodyHtml, onMount, onBack, bodyCls }) {
   const wrap = $('#subpane-wrap');
   const pane = $('#subpane');
   if (!wrap || !pane) return;
@@ -920,7 +922,7 @@ function openSubpage({ title, rightBtn, bodyHtml, onMount, onBack }) {
       <div class="hdr-title">${esc(title || '')}</div>
       <div class="hdr-right" id="subpane-right-slot">${rightBtn || '<div style="width:36px"></div>'}</div>
     </header>
-    <main class="subpage-body" id="subpane-body">
+    <main class="subpage-body ${bodyCls || ''}" id="subpane-body">
       ${bodyHtml || ''}
     </main>
   `;
@@ -1079,17 +1081,9 @@ function displayOf(p) {
 function renderContacts(host) {
   const list = S.personas;
   let html = `<div class="searchbar">
-      <div class="searchbar-in"><svg><use href="#i-search"></use></svg><span>搜索</span></div>
-    </div>`;
-
-  html += `<div class="sec-title">新的朋友</div>
-    <div class="row" id="ct-add">
-      <div class="av" style="background:var(--accent-soft);color:var(--accent)">
-        <svg style="width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round"><use href="#i-plus"></use></svg>
-      </div>
-      <div class="row-main"><div class="row-name">添加人设</div>
-      <div class="row-sub">创建一个人物，写进他的性格与说话方式</div></div>
-    </div>`;
+      <div class="searchbar-in"><svg><use href="#i-search"></use></svg><input id="ct-wxid-search" class="wxid-search-input" placeholder="输入微信号找人…" maxlength="24" autocomplete="off"></div>
+    </div>
+    <div id="ct-search-result"></div>`;
 
   html += `<div class="sec-title">联系人 · ${list.length}</div>`;
   html += list.map(p => `
@@ -1103,9 +1097,39 @@ function renderContacts(host) {
 
   html += `<div style="height:12px"></div>`;
   host.innerHTML = html;
-  host.querySelector('#ct-add').onclick = addPersona;
   host.querySelectorAll('.row[data-pid]').forEach(r => {
     r.onclick = () => openProfile(r.dataset.pid);
+  });
+
+  // 微信号搜索：只查找，不创建。命中 → 进对话；未命中 → 提示
+  const searchInput = host.querySelector('#ct-wxid-search');
+  const resultBox = host.querySelector('#ct-search-result');
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) { resultBox.innerHTML = ''; return; }
+    const hit = list.find(p => (p.wxid || '').toLowerCase() === q)
+      || list.find(p => (p.wxid || '').toLowerCase().includes(q))
+      || list.find(p => (displayOf(p).name || '').toLowerCase().includes(q));
+    if (hit) {
+      const d = displayOf(hit);
+      resultBox.innerHTML = `<div class="sec-title" style="margin-top:10px;">找到 TA</div>
+        <div class="row" id="ct-search-hit">
+          ${avatarHtml(d)}
+          <div class="row-main">
+            <div class="row-top"><div class="row-name">${esc(d.name)}</div></div>
+            <div class="row-sub">微信号：${esc(hit.wxid || '未设置')}</div>
+          </div>
+        </div>`;
+      resultBox.querySelector('#ct-search-hit').onclick = () => {
+        searchInput.value = ''; resultBox.innerHTML = '';
+        openProfile(hit.id);
+      };
+    } else {
+      resultBox.innerHTML = `<div class="sec-title" style="margin-top:10px;">没有找到</div>
+        <div style="font-size:12px;color:var(--text-4);padding:14px 4px;line-height:1.7;">
+          没有人用这个微信号。<br>新建人设请回到桌面，打开「人设馆」。
+        </div>`;
+    }
   });
 }
 
@@ -1452,6 +1476,112 @@ function openProfile(pid, backFn) {
   });
 }
 
+/* ---------------- 世界书绑定（只读桌面灵魂秘卷数据 + 局部绑定选择） ----------------
+   桌面（海盐白山茶）灵魂秘卷的存储：
+   - sea_salt_wb_global    全局世界书条目（自动绑定所有对话，只读）
+   - sea_salt_wb_character 局部世界书条目池（按人设选择绑定）
+   p.worldbookIds 存【局部条目的 title 列表】（桌面端条目以 title 唯一标识）
+---------------------------------------------------------------- */
+function getDesktopGlobalWB() {
+  try { return JSON.parse(localStorage.getItem('sea_salt_wb_global')) || []; } catch (e) { return []; }
+}
+function getDesktopLocalWB() {
+  try { return JSON.parse(localStorage.getItem('sea_salt_wb_character')) || []; } catch (e) { return []; }
+}
+function getBoundLocalTitles(p) { return p.worldbookIds || []; }
+function saveBoundLocalTitles(p, arr) { p.worldbookIds = arr; savePersonas(); persist(); }
+
+function wbCountLabel(p) {
+  const g = getDesktopGlobalWB().length;
+  const bound = getDesktopLocalWB().filter(e => getBoundLocalTitles(p).includes(e.title)).length;
+  const all = getDesktopLocalWB().length;
+  return `全局${g} · 绑定${bound}/${all}`;
+}
+
+/* 收集某个人设当前生效的世界书条目（桌面数据：全局全带 + 局部按绑定标题） */
+function collectWorldbookEntries(p, recentText) {
+  const out = [];
+  const push = (entry) => {
+    const kw = (entry.keyword || '').trim();
+    const content = (entry.content || '').trim();
+    if (!content) return;
+    // 无关键词视为常驻；有关键词则命中最近对话才注入
+    const hit = !kw || recentText.includes(kw);
+    if (hit) out.push({ bookName: kw ? kw : '常驻', content });
+  };
+  getDesktopGlobalWB().forEach(push);
+  const bound = getBoundLocalTitles(p);
+  getDesktopLocalWB().forEach(e => { if (bound.includes(e.title)) push(e); });
+  return out;
+}
+
+/* 世界书绑定页（只读展示 + 局部条目勾选，一次性保存绑定） */
+function openWorldbookPage(p, backFn) {
+  const backTo = backFn || (() => openChatSettingsPage(p));
+  const globalList = getDesktopGlobalWB();
+  const localList = getDesktopLocalWB();
+  const boundInit = getBoundLocalTitles(p);
+  let pendingBound = boundInit.slice();   // 勾选暂存，点保存才生效
+
+  const rowHTML = (e, selectable, checked) => `
+    <div class="profile-menu-item wb-item" style="cursor:default;">
+      <div class="profile-menu-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5a2 2 0 0 1 2-2h13.5v16H6a2 2 0 0 0-2 2Z"/><path d="M4 19a2 2 0 0 0 2 2h13.5"/></svg>
+      </div>
+      <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:2px;display:flex;min-width:0;">
+        <span style="width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e.title || '未命名条目')}</span>
+        <span style="font-size:10.5px;color:var(--text-4);width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc((e.content || '').slice(0, 40) || '暂无内容')}</span>
+      </div>
+      ${selectable
+        ? `<button type="button" class="tg-switch ${checked ? 'on' : ''} wb-bind-switch" data-title="${esc(e.title)}" aria-label="绑定开关"><span class="tg-knob"></span></button>`
+        : `<span style="font-size:11px;color:var(--accent-2);font-weight:600;flex-shrink:0;">自动绑定</span>`}
+    </div>`;
+
+  openSubpage({
+    title: '世界书',
+    onBack: backTo,
+    bodyHtml: `
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;padding:0 2px;line-height:1.6;">
+        世界书数据来自桌面<b>「灵魂秘卷」</b>：全局条目对 ${esc(displayOf(p).name)} 自动生效；局部条目在这里勾选绑定。<br>添加与编辑请在桌面的灵魂秘卷里完成，这边只做绑定。
+      </div>
+
+      <div class="sec-title" style="padding-left:2px;">全局世界书（自动绑定 · 只读）</div>
+      <div class="profile-menu-card" style="margin:0 0 14px 0;">
+        ${globalList.length ? globalList.map(e => rowHTML(e, false, false)).join('')
+          : '<div style="font-size:12px;color:var(--text-4);text-align:center;padding:16px 0;">桌面灵魂秘卷里还没有全局条目</div>'}
+      </div>
+
+      <div class="sec-title" style="padding-left:2px;">局部世界书（勾选绑给 TA · 一次性保存）</div>
+      <div class="profile-menu-card" style="margin:0;">
+        ${localList.length ? localList.map(e => rowHTML(e, true, pendingBound.includes(e.title))).join('')
+          : '<div style="font-size:12px;color:var(--text-4);text-align:center;padding:16px 0;">桌面灵魂秘卷里还没有局部条目</div>'}
+      </div>
+
+      <div style="height:16px;"></div>
+      <button class="btn-main" id="wb-save-bind" style="width:100%;">保存绑定</button>
+      <div style="height:12px;"></div>
+    `,
+    onMount() {
+      // 勾选只改暂存
+      document.querySelectorAll('.wb-bind-switch').forEach(sw => {
+        sw.onclick = (e) => {
+          e.stopPropagation();
+          const t = sw.dataset.title;
+          sw.classList.toggle('on');
+          const idx = pendingBound.indexOf(t);
+          if (idx >= 0) pendingBound.splice(idx, 1); else pendingBound.push(t);
+        };
+      });
+      // 一次性保存
+      $('#wb-save-bind').onclick = () => {
+        saveBoundLocalTitles(p, pendingBound);
+        $('#cs-wb-count') && ($('#cs-wb-count').textContent = wbCountLabel(p));
+        toast(`绑定已保存：局部 ${pendingBound.length} 条生效 ♡`);
+      };
+    }
+  });
+}
+
 /* ---------------- 主题 ---------------- */
 function openThemeSheet() {
   openSheet({
@@ -1480,11 +1610,13 @@ let selectedMsgIds = new Set();
 let paneEl = null;
 
 
-/* 快捷修改拍一拍文案（单开独立全屏页面） */
+/* 快捷修改拍一拍文案（单开独立全屏页面：TA 的 + 自己的） */
 function editPokeSuffixSheet(p, backFn) {
-  const cur = p.pokeSuffix || '的小脸蛋并递上一杯温水';
+  const curThem = p.pokeSuffix || '的小脸蛋并递上一杯温水';
+  const curMask = getCurrentMask();
+  const curMe = (curMask && curMask.pokeSuffix) || (S.account && S.account.pokeSuffix) || '';
   openSubpage({
-    title: '设置拍一拍文案',
+    title: '设置拍一拍',
     onBack: backFn || closeSubpage,
     rightBtn: `
       <button class="hdr-btn" id="ps-save-btn" style="color:var(--accent);font-weight:600;font-size:14px;width:auto;padding:0 6px;">
@@ -1493,16 +1625,24 @@ function editPokeSuffixSheet(p, backFn) {
     `,
     bodyHtml: `
       <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;padding:0 2px;">
-        例如输入「的小脸蛋并递上一杯温水」，双击头像拍一拍将显示：你 拍了拍 TA 的小脸蛋...
+        双击头像拍一拍时显示，例如填「的小脸蛋并递上一杯温水」→ 你 拍了拍 ${esc(displayOf(p).name)} 的小脸蛋...
       </div>
       <div class="field">
-        <div class="field-label">拍一拍后缀文案</div>
-        <input class="field-input" id="ps-suffix-input" maxlength="28" value="${esc(cur)}" placeholder="例如：的小脸蛋、的小脑瓜">
+        <div class="field-label">拍 ${esc(displayOf(p).name)} 时</div>
+        <input class="field-input" id="ps-suffix-input" maxlength="28" value="${esc(curThem)}" placeholder="例如：的小脸蛋、的小脑瓜">
+      </div>
+      <div class="field">
+        <div class="field-label">拍自己时（留空则用默认）</div>
+        <input class="field-input" id="ps-me-input" maxlength="28" value="${esc(curMe)}" placeholder="例如：的小脑袋并轻轻叹了口气">
       </div>
     `,
     onMount() {
       $('#ps-save-btn').onclick = () => {
         p.pokeSuffix = $('#ps-suffix-input').value.trim() || '的小脸蛋并递上一杯温水';
+        const meVal = $('#ps-me-input').value.trim();
+        // 自己的拍一拍存在当前面具上（跟随身份），没有面具则存账号
+        if (curMask) curMask.pokeSuffix = meVal;
+        else if (S.account) S.account.pokeSuffix = meVal;
         savePersonas(); persist();
         if (backFn) backFn(); else closeSubpage();
         toast('拍一拍文案已保存 ♡');
@@ -1612,14 +1752,6 @@ function openChatSettingsPage(p) {
           <div class="profile-menu-arrow">›</div>
         </div>
 
-        <div class="profile-menu-item" id="cs-edit-poke">
-          <div class="profile-menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19.6S4.4 15.3 4.4 10.2A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.6 2.6c0 5.1-7.6 9.4-7.6 9.4Z"/></svg>
-          </div>
-          <div class="profile-menu-label">设置拍一拍文案</div>
-          <div class="profile-menu-extra" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.pokeSuffix || '的小脸蛋...')}</div>
-          <div class="profile-menu-arrow">›</div>
-        </div>
       </div>
 
       <!-- 人设资料组 -->
@@ -1635,6 +1767,15 @@ function openChatSettingsPage(p) {
           </button>
         </div>
 
+        <div class="profile-menu-item" id="cs-worldbook">
+          <div class="profile-menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.4"/><path d="M4 12h16M12 3.6c2.4 2.3 3.6 5.1 3.6 8.4s-1.2 6.1-3.6 8.4c-2.4-2.3-3.6-5.1-3.6-8.4s1.2-6.1 3.6-8.4Z"/></svg>
+          </div>
+          <div class="profile-menu-label">世界书</div>
+          <div class="profile-menu-extra" id="cs-wb-count">${wbCountLabel(p)}</div>
+          <div class="profile-menu-arrow">›</div>
+        </div>
+
         <div class="profile-menu-item" id="cs-view-card">
           <div class="profile-menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="6" width="16" height="12.5" rx="2.4"/><rect x="8.2" y="9.4" width="7.6" height="5.8" rx="1.2"/><circle cx="12" cy="12.3" r="0.7" fill="currentColor" stroke="none"/></svg>
@@ -1643,11 +1784,12 @@ function openChatSettingsPage(p) {
           <div class="profile-menu-arrow">›</div>
         </div>
 
-        <div class="profile-menu-item" id="cs-edit-persona">
+        <div class="profile-menu-item" id="cs-edit-poke2">
           <div class="profile-menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2.9"/><path d="M12 3.6v2.2M12 18.2v2.2M20.4 12h-2.2M5.8 12H3.6M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19.6S4.4 15.3 4.4 10.2A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.6 2.6c0 5.1-7.6 9.4-7.6 9.4Z"/></svg>
           </div>
-          <div class="profile-menu-label">编辑完整人设</div>
+          <div class="profile-menu-label">设置拍一拍</div>
+          <div class="profile-menu-extra" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">TA：${esc(p.pokeSuffix || '的小脸蛋...')}</div>
           <div class="profile-menu-arrow">›</div>
         </div>
       </div>
@@ -1667,7 +1809,7 @@ function openChatSettingsPage(p) {
       const backToThis = () => openChatSettingsPage(p);
       $('#cs-profile-card').onclick = () => openProfile(p.id, backToThis);
       $('#cs-view-card').onclick = () => openProfile(p.id, backToThis);
-      $('#cs-edit-persona').onclick = () => personaEditor(p, false, backToThis);
+      $('#cs-edit-poke2').onclick = () => editPokeSuffixSheet(p, backToThis);
 
       // 时间感知开关（与编辑完整人设里的开关共用同一状态）
       const taSwitch = $('#cs-ta-switch');
@@ -1683,7 +1825,7 @@ function openChatSettingsPage(p) {
         };
       }
       $('#cs-edit-korean').onclick = () => editKoreanQuoteSheet(p, backToThis);
-      $('#cs-edit-poke').onclick = () => editPokeSuffixSheet(p, backToThis);
+      $('#cs-worldbook').onclick = () => openWorldbookPage(p, backToThis);
 
       $('#cs-change-bg').onclick = () => {
         closeSubpage();
@@ -2081,6 +2223,24 @@ function renderThread(autoScroll = true) {
 }
 
 function bindChatEvents(body, p) {
+  // 线下邀请小邮票：接受 → 进入线下模式；婉拒 → 留一句回应
+  body.querySelectorAll('.of-invite-stamp').forEach(stamp => {
+    const mid = stamp.closest('.msg')?.dataset.mid;
+    const msg = (S.chats[p.id] || []).find(m => m.id === mid);
+    stamp.querySelector('[data-act="accept-offline"]').onclick = (e) => {
+      e.stopPropagation();
+      if (isSelectMode) return;
+      acceptOfflineInvite(p, msg || {});
+    };
+    const decline = stamp.querySelector('[data-act="decline-offline"]');
+    if (decline) decline.onclick = (e) => {
+      e.stopPropagation();
+      if (isSelectMode) return;
+      toast('已婉拒这次邀约');
+      stamp.classList.add('is-declined');
+    };
+  });
+
   // 绑定对话列表里的头像双击拍一拍（双击对方头像拍对方，双击自己头像拍自己，防止单击误触）
   body.querySelectorAll('.msg-avatar-slot[data-act="poke-avatar"]').forEach(avSlot => {
     let clickTimer = null;
@@ -2349,7 +2509,7 @@ function showWhisperStampModal(p) {
       </div>
       <div class="wsc-ftr">
         <span>来自：${esc(displayOf(p).name)}</span>
-        <span>🔒 仅你可见的心声</span>
+        <span>仅你可见的心声</span>
       </div>
       <button class="wsc-close-btn" id="wsc-close-btn">收下心声</button>
     </div>
@@ -2373,7 +2533,8 @@ function triggerPoke(p, target = 'them') {
 
   let text = '';
   if (target === 'me') {
-    text = `${myName} 拍了拍 自己的脑袋并轻轻叹了口气`;
+    const mySuffix = (curMask && curMask.pokeSuffix) || (me && me.pokeSuffix) || '的小脑袋并轻轻叹了口气';
+    text = `${myName} 拍了拍 自己${mySuffix}`;
   } else {
     text = `${myName} 拍了拍 ${themName} ${suffix}`;
   }
@@ -2414,6 +2575,52 @@ function msgHtml(m, p, isMe, opts = {}) {
       <div class="msg-poke-center msg-sys-actionable ${isSelected ? 'is-selected' : ''}" data-mid="${m.id}">
         <div class="msg-check-box"></div>
         <span class="msg-poke-chip">${esc(m.text)}</span>
+      </div>
+    `;
+  }
+
+  // 线下邀请小邮票：人设主动发来的约会邀请卡
+  if (m.type === 'offline_invite') {
+    return `
+      <div class="msg offline-invite-msg" data-mid="${m.id}">
+        <div class="msg-avatar-slot" data-act="poke-avatar" data-role="them">${avatarHtml(displayOf(p), 'sm')}</div>
+        <div class="msg-content-wrap">
+          <div class="msg-tag-row"><span>@You</span></div>
+          <div class="of-invite-stamp">
+            <div class="of-invite-perf"></div>
+            <div class="of-invite-body">
+              <div class="of-invite-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8.5 12 3l9 5.5v7L12 21l-9-5.5Z"/><path d="M3 8.5 12 14l9-5.5M12 14v7"/></svg>
+              </div>
+              <div class="of-invite-title">线下之约 · 邀请小邮票</div>
+              <div class="of-invite-text">${esc(m.text || `${displayOf(p).name} 想约你出去走走，点开这枚邮票赴约…`)}</div>
+              <div class="of-invite-btn" data-act="accept-offline">接受邀请 · 赴约</div>
+            </div>
+            <div class="of-invite-cancel" data-act="decline-offline">婉拒</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // 线下纪念卡：约会结束后留在聊天里的回忆（信封样式，内联样式防缓存丢失）
+  if (m.type === 'offline_memory') {
+    const envS = 'position:relative;margin:16px auto 8px;width:78%;max-width:300px;background:linear-gradient(160deg,#FFF6F1 0%,#FBEAEE 70%,#F6DFE8 100%);border:1px solid rgba(210,140,165,.3);border-radius:14px;overflow:hidden;box-shadow:0 8px 22px -10px rgba(190,110,140,.4);text-align:center;';
+    const flapS = 'position:absolute;top:0;left:0;right:0;height:44%;background:linear-gradient(180deg,rgba(232,138,165,.16),transparent);clip-path:polygon(0 0,100% 0,50% 100%);pointer-events:none;';
+    const heartS = 'font-size:20px;line-height:1;color:#D8829E;';
+    const titleS = 'position:relative;font-size:14px;font-weight:700;color:#C4698A;margin-top:6px;letter-spacing:.06em;';
+    const textS = 'position:relative;font-size:12px;color:#7c6f77;margin-top:5px;';
+    const footS = 'position:relative;font-size:9.5px;color:#b9a6ae;margin-top:10px;letter-spacing:.18em;';
+    const stampS = 'position:absolute;top:8px;right:8px;width:30px;height:36px;border:1.5px dashed rgba(216,130,158,.5);border-radius:4px;font-size:9px;color:#D8829E;line-height:36px;';
+    return `
+      <div style="${envS}">
+        <div style="${flapS}"></div>
+        <div style="position:relative;padding:20px 18px 14px;">
+          <div style="${heartS}">♡</div>
+          <div style="${titleS}">${esc(m.personaName || displayOf(p).name)} · 线下之约</div>
+          <div style="${textS}">${esc(m.sceneName && m.sceneName !== '线下之约' ? m.sceneName + ' · ' : '')}你们交换了 ${m.turns || 0} 段时光</div>
+          <div style="${footS}">—— 这段回忆已被收进信笺 ——</div>
+        </div>
+        <div style="${stampS}">♡</div>
       </div>
     `;
   }
@@ -2582,6 +2789,8 @@ function renderDrawer() {
     <div class="dr-item" id="dr-img"><div class="dr-ico"><svg><use href="#i-img"></use></svg></div><span>图片</span></div>
     <div class="dr-item" id="dr-money"><div class="dr-ico"><svg><use href="#i-wallet"></use></svg></div><span>转账</span></div>
     <div class="dr-item" id="dr-poke"><div class="dr-ico"><svg><use href="#i-heart"></use></svg></div><span>拍一拍</span></div>
+    <div class="dr-item" id="dr-offline"><div class="dr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8.5 12 3l9 5.5v7L12 21l-9-5.5Z"/><path d="M3 8.5 12 14l9-5.5M12 14v7"/></svg></div><span>线下之约</span></div>
+    <div class="dr-item" id="dr-retry"><div class="dr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></div><span>重新生成</span></div>
     <input type="file" id="dr-img-input" accept="image/*" hidden>
     <div class="sticker-grid hidden" id="dr-grid">${custom}${addCell}</div>
   `;
@@ -2598,6 +2807,15 @@ function renderDrawer() {
     r.readAsDataURL(f);
   };
   $('#dr-money').onclick = () => { closeDrawer(); transferFlow(); };
+  $('#dr-offline').onclick = () => {
+    closeDrawer();
+    const p = S.personas.find(x => x.id === S.openId);
+    if (p) openOfflineInviteSheet(p);
+  };
+  $('#dr-retry').onclick = () => {
+    closeDrawer();
+    chatRegenerateLast();
+  };
   $('#dr-poke').onclick = () => {
     closeDrawer();
     const p = S.personas.find(x => x.id === S.openId);
@@ -2620,6 +2838,51 @@ function renderDrawer() {
       sendSticker(u, nm);
     };
   });
+}
+
+/* 聊天重新生成：弹出意见卡（可写希望怎么改），或直接重试 */
+function chatRegenerateLast() {
+  const pid = S.openId;
+  const p = S.personas.find(x => x.id === pid);
+  if (!p) return;
+  const list = S.chats[pid] || [];
+  const hasMsg = list.some(m => m.role === 'them' && !m.recalled);
+  if (!hasMsg) { toast('还没有 TA 的消息可以重新生成'); return; }
+
+  const card = document.createElement('div');
+  card.className = 'of-exit-card';
+  card.innerHTML = `
+    <div class="of-exit-card-inner">
+      <div class="of-exit-title">重新生成这条回复</div>
+      <div class="of-exit-sub">写下你希望怎么改（可留空直接重试）</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:12px;">
+        <button class="of-opt-chip" data-hint="语气太凶了，温柔一点">语气太凶了</button>
+        <button class="of-opt-chip" data-hint="刚才的回复 OOC 了，请贴合人设">OOC 了</button>
+        <button class="of-opt-chip" data-hint="太主动了，收着一点">太主动了</button>
+        <button class="of-opt-chip" data-hint="太冷淡了，热情一点">太冷淡了</button>
+      </div>
+      <input id="retry-hint-input" placeholder="或者自己写：希望 TA 怎么回…" maxlength="60" style="width:100%;box-sizing:border-box;margin-top:12px;border:1.5px solid rgba(232,168,190,.45);border-radius:12px;padding:10px 13px;font-size:13px;background:#fff;color:var(--text);outline:none;">
+      <div class="of-exit-btns">
+        <button class="of-exit-btn end" id="retry-go">重新生成</button>
+        <button class="of-exit-btn cancel" id="retry-cancel">算了</button>
+      </div>
+    </div>`;
+  document.body.appendChild(card);
+  const close = () => card.remove();
+  card.onclick = (e) => { if (e.target === card) close(); };
+  card.querySelector('#retry-cancel').onclick = close;
+  card.querySelectorAll('[data-hint]').forEach(chip => {
+    chip.onclick = () => { card.querySelector('#retry-hint-input').value = chip.dataset.hint; };
+  });
+  card.querySelector('#retry-go').onclick = () => {
+    const hint = card.querySelector('#retry-hint-input').value.trim();
+    close();
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].role === 'them' && !list[i].recalled) { list.splice(i, 1); break; }
+    }
+    saveChats(); renderThread();
+    reply(pid, hint || null);
+  };
 }
 
 function sendStickerText(t) {
@@ -2679,6 +2942,11 @@ const SOUL_BASE = `你正在用手机和一个很亲近的人聊天。不是写�
 
 【特别规则：头像更换】
 - 如果对方发来一张图片并希望（或暗示）你用它换头像，而你确实愿意换：请单独输出一行 [换头像]（例如：[换头像] 好，这张做我的新头像）。系统会自动把该图片设为你的新头像。若你不想换，正常回应即可，不要输出该标记。
+
+【特别规则：线下之约】
+- 当你们聊到想见面、想出去走走、约饭、约会这类话题，而你真心想去时，可以在消息中单独输出一行标记：[线下邀请: 你想对TA说的话]（例如：[线下邀请: 周末的海边栈道，陪我走走好不好]）。系统会把这句话变成一枚"线下邀请小邮票"寄给TA，TA点击就能和你进入线下约会。
+- 不要频繁使用：只有聊天气氛真的到了、你也很想去的时候才发。如果对方没接话或婉拒了，不要重复邀请。
+- 进入线下约会后，你们会以文字文游的方式"见面"，那里由另一位叙述者负责描写。
 
 {STICKERS_RULE}
 
@@ -2748,6 +3016,13 @@ function buildMessages(p, useVision = false) {
     .replace('{PERSONA}', p.prompt || `名字：${p.name}。${p.sign || ''}（人设还没写，请自然、温柔地回应。）`);
   const msgs = [{ role: 'system', content: sys }];
 
+  // 世界书注入：全局自动绑定 + 局部按人设绑定，关键词命中最近对话时注入设定
+  const recentTextForWB = list.slice(-30).map(m => m.text || '').join('\n');
+  const wbEntries = collectWorldbookEntries(p, recentTextForWB);
+  if (wbEntries.length) {
+    const wbBlock = wbEntries.map(en => `- ${en.content}`).join('\n');
+    msgs[0].content += `\n\n【世界书 · 背景设定（以下是你们共同世界的设定，请在回应中自然遵循，不要复述）】\n${wbBlock}`;
+  }
   // 找出最后 2 条图片/表情消息，在识图模式下附带真实图像，避免历史图片过多撑爆请求体积
   const visionTargetIds = new Set();
   if (useVision) {
@@ -2849,7 +3124,7 @@ async function streamChat(api, messages, temperature, onDelta) {
 /* ================================================================
    对话引擎：一次调用解析心声邮票卡片与常规气泡
    ================================================================ */
-async function reply(pid) {
+async function reply(pid, regenHint) {
   const p = S.personas.find(x => x.id === pid);
   if (!p) return;
   const body = $('#cp-body');
@@ -2895,6 +3170,7 @@ async function reply(pid) {
     const useVis = isVisionModel(api.model);
     try {
       const msgs = buildMessages(p, useVis);
+      if (regenHint) msgs[0].content += `\n\n【重新生成要求】用户对上一条回复不满意，这次请按这个要求调整：${regenHint}`;
       text = await streamChat(api, msgs, temp, null);
       err = null;
       break;
@@ -2936,6 +3212,11 @@ async function reply(pid) {
     if (/\[换头像\]|\[更换头像\]/i.test(l)) {
       avatarChangeRequested = true;
       l = l.replace(/\[(?:更换)?换头像\]/ig, '').trim();
+    }
+    // 检测线下之约邀请 [线下邀请: 场景]：人设主动发一枚线下邀请小邮票
+    const ofMatch = l.match(/\[线下邀请[:：]\s*([^\]]+)\]/);
+    if (ofMatch) {
+      l = l.replace(/\[线下邀请[:：][^\]]*\]/g, '').trim();
     }
     // 检测是否包含 [收款] 或 [退回] 意图
     if (/\[(收款|收下|确认收款)\]/i.test(l)) {
@@ -3008,6 +3289,19 @@ async function reply(pid) {
   // 如果提取到了心声，存入聊天记录（供点击头像查看），且不在普通聊天气泡流中重复插入打扰
   if (whisperText) {
     pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'whisper', text: whisperText, time: Date.now() });
+  }
+
+  // 线下之约：模型发起 [线下邀请: 想说的话] → 紧跟一条线下邀请小邮票卡片
+  if (ofMatch && !offlineStateOf(p).active) {
+    setTimeout(() => {
+      pushMsg(pid, {
+        id: 'm_' + uid(), role: 'them', type: 'offline_invite', time: Date.now(),
+        text: ofMatch[1].trim() || `${displayOf(p).name} 想约你出去走走`,
+        scene: 'seaside'
+      });
+      renderThread();
+      toast(`${displayOf(p).name} 寄来一枚线下邀请小邮票`);
+    }, 500);
   }
 
   // 依次弹出真实回复短气泡与表情包
@@ -3117,11 +3411,11 @@ function renderDiscover(host) {
   $('#disc-grid-add').onclick = promptAddMiniApp;
 
   $('#disc-camellia-fm').onclick = () => {
-    toast('📻 正在播放：《海盐与白山茶 · 0.8倍速微风》♡');
+    toast('正在播放：《海盐与白山茶 · 0.8倍速微风》♡');
   };
   $('#disc-capsule').onclick = () => {
     openSheet({
-      title: '💌 漂流瓶 · 寄给未来的信',
+      title: '漂流瓶 · 寄给未来的信',
       body: `
         <div class="field"><textarea class="field-input" id="capsule-text" placeholder="写一句悄悄话装进瓶子里，扔向海盐海浪..."></textarea></div>
       `,
@@ -3131,7 +3425,7 @@ function renderDiscover(host) {
           const t = $('#capsule-text').value.trim();
           if (!t) { toast('请写下想说的心事'); return; }
           closeSheet();
-          toast('🌊 瓶子乘着晚风漂向远方，也许阿愿待会就能捡到...');
+          toast('瓶子乘着晚风漂向远方，也许阿愿待会就能捡到...');
         };
       }
     });
@@ -3159,7 +3453,7 @@ function promptAddMiniApp() {
   let curIcon = 'i-heart';
 
   openSheet({
-    title: '✨ 添加新小程序',
+    title: '添加新小程序',
     body: `
       <div class="field">
         <div class="field-label">小程序名称</div>
@@ -3216,7 +3510,7 @@ function promptAddMiniApp() {
         persist();
         closeSheet();
         renderTab('discover');
-        toast(`小程序「${name}」已添加 ✨`);
+        toast(`小程序「${name}」已添加`);
       };
     }
   });
@@ -4291,3 +4585,691 @@ function openStickerRenamePage(item, idx) {
    执行启动
    ================================================================ */
 boot();
+
+
+/* ================================================================
+   线下之约 · Offline Date Mode（文游式第三人称约会）
+   —— 双通道进入：① ＋面板「线下之约」直接发起；② 人设主动发「线下邀请小邮票」卡片点入
+   —— 文游叙述：AI 以第三人称描写场景与 TA 的动作神态，你输入行动/台词
+   —— 退出留纪念卡进聊天；剧情可续（p.offlineState）
+   ================================================================ */
+
+const OFFLINE_SCENES = [
+  { id: 'seaside',  name: '海边的栈道',   desc: '晚风、浪声与远处的灯火',       hint: '海边的木质栈道，傍晚，橘色晚霞铺在海面上，远处灯塔亮起' },
+  { id: 'cafe',     name: '转角咖啡店',   desc: '雨天窗边的一杯热拿铁',         hint: '下着小雨的午后，咖啡店窗边，暖气混着咖啡豆香' },
+  { id: 'nightfair',name: '深夜小吃街',   desc: '烟火气与并肩的人潮',           hint: '热闹的夜市小吃街，灯光暖黄，人潮并肩' },
+  { id: 'home',     name: 'TA 的家',      desc: '毛毯、电影与安静陪伴',         hint: 'TA 的家，客厅沙发，电视开着电影，窗外夜色' },
+  { id: 'custom',   name: '自定义场景',   desc: '写一个你们想去的地方',         hint: '' }
+];
+
+function offlineStateOf(p) {
+  if (!p.offlineState) p.offlineState = { active: false, scene: '', sceneName: '', log: [], startedAt: 0 };
+  return p.offlineState;
+}
+
+/* —— 入口一：＋面板「线下之约」—— */
+/* —— 入口一：＋面板「线下之约」—— */
+function openOfflineInviteSheet(p) {
+  // 有进行中的约会 → 直接继续；否则直接开场（场景交给 AI 根据线上记忆自行安排）
+  const st = offlineStateOf(p);
+  if (st.active && st.log.length) {
+    openOfflineMode(p);
+    return;
+  }
+  startOfflineDate(p, null);
+}
+
+function openOfflineScenePicker(p) {
+  const items = OFFLINE_SCENES.map(s => ({
+    icon: 'i-img',
+    text: `${s.name} · ${s.desc}`,
+    act: () => {
+      closeSheet();
+      if (s.id === 'custom') {
+        openOfflineCustomScene(p);
+      } else {
+        startOfflineDate(p, s);
+      }
+    }
+  }));
+  openSheet({ title: `和 ${displayOf(p).name} 去哪？`, items });
+}
+
+function openOfflineCustomScene(p) {
+  openSubpage({
+    title: '自定义场景',
+    onBack: closeSubpage,
+    rightBtn: `<button class="hdr-btn" id="ofs-go" style="color:var(--accent);font-weight:600;font-size:14px;width:auto;padding:0 6px;">出发</button>`,
+    bodyHtml: `
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:12px;padding:0 2px;">
+        写下你们要去的地方与氛围，AI 会以此展开叙述。
+      </div>
+      <div class="field">
+        <div class="field-label">场景名字</div>
+        <input class="field-input" id="ofs-name" maxlength="12" placeholder="例如：老城区的天台">
+      </div>
+      <div class="field">
+        <div class="field-label">场景描述（时间 / 地点 / 氛围）</div>
+        <textarea class="field-input" id="ofs-desc" style="min-height:88px;" placeholder="例如：夏夜，老城区的天台，能看见整片城市的灯，风很轻"></textarea>
+      </div>
+    `,
+    onMount() {
+      $('#ofs-go').onclick = () => {
+        const name = $('#ofs-name').value.trim() || '未知的约会';
+        const desc = $('#ofs-desc').value.trim();
+        if (!desc) { toast('写点场景描述吧'); return; }
+        closeSubpage();
+        startOfflineDate(p, { id: 'custom', name, hint: desc });
+      };
+    }
+  });
+}
+
+/* —— 开始一段线下约会 —— */
+function startOfflineDate(p, scene) {
+  const st = offlineStateOf(p);
+  st.active = true;
+  st.scene = scene ? scene.id : '';
+  st.sceneName = scene ? scene.name : '线下之约';
+  st.sceneHint = scene ? scene.hint : '';
+  st.log = [];
+  st.startedAt = Date.now();
+  savePersonas(); persist();
+  openOfflineMode(p);
+  toast(`与 ${displayOf(p).name} 的线下之约开始了`);
+}
+
+/* 线下设置（右上角 ⋯）：整页设置，点选后即改即存 */
+function openOfflineSettings(p) {
+  const st = offlineStateOf(p);
+  const LEN_OPTS = [120, 250, 400, 600];
+  const lenVal = st.outLen || 250;
+  const person = st.person || 'third';
+  const personName = { third: '第三人称（TA 的名字）', second: '第二人称（你）', first: 'TA 的第一人称（我）' }[person];
+  const tempo = st.tempo || 'normal';
+  const tempoName = { slow: '慢热 · 铺垫多一点', normal: '自然 · 均匀推进', fast: '明快 · 事件感强' }[tempo];
+  const showMind = st.showMind !== false;   // 是否在叙述后附 TA 的内心一句
+  const envOn = st.envDetail !== false;     // 环境细节描写
+
+  openSubpage({
+    title: '线下模式 · 设置',
+    onBack: () => openOfflineMode(p),
+    bodyHtml: `
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;padding:0 2px;line-height:1.6;">
+        线下文游的写作偏好，改完立刻生效，下一轮叙述就按新的来。
+      </div>
+
+      <div class="sec-title" style="padding-left:2px;">叙述风格</div>
+      <div class="profile-menu-card" style="margin:0 0 14px 0;">
+        <div class="profile-menu-item of-opt-row" data-of="len">
+          <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:3px;display:flex;">
+            <span>单次输出长度</span>
+            <span style="font-size:10.5px;color:var(--text-4);">每次叙述大约写多少字</span>
+          </div>
+          <div class="profile-menu-extra" id="ofs-len-val" style="color:var(--accent);font-weight:600;">约 ${lenVal} 字</div>
+        </div>
+        <div class="of-opt-bubble" id="of-bubble-len"></div>
+        <div class="profile-menu-item of-opt-row" data-of="person">
+          <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:3px;display:flex;">
+            <span>叙述人称</span>
+            <span style="font-size:10.5px;color:var(--text-4);">故事用什么视角讲</span>
+          </div>
+          <div class="profile-menu-extra" id="ofs-person-val" style="color:var(--accent);font-weight:600;">${esc(personName)}</div>
+        </div>
+        <div class="of-opt-bubble" id="of-bubble-person"></div>
+        <div class="profile-menu-item of-opt-row" data-of="tempo">
+          <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:3px;display:flex;">
+            <span>节奏</span>
+            <span style="font-size:10.5px;color:var(--text-4);">剧情推进的快慢</span>
+          </div>
+          <div class="profile-menu-extra" id="ofs-tempo-val" style="color:var(--accent);font-weight:600;">${esc(tempoName)}</div>
+        </div>
+        <div class="of-opt-bubble" id="of-bubble-tempo"></div>
+      </div>
+
+      <div class="sec-title" style="padding-left:2px;">细节</div>
+      <div class="profile-menu-card" style="margin:0 0 14px 0;">
+        <div class="profile-menu-item">
+          <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:3px;display:flex;">
+            <span>TA 的内心一句</span>
+            <span style="font-size:10.5px;color:var(--text-4);">每段叙述末尾附一句 TA 没说出口的心里话</span>
+          </div>
+          <button type="button" class="tg-switch ${showMind ? 'on' : ''}" id="ofs-mind" aria-label="内心一句开关"><span class="tg-knob"></span></button>
+        </div>
+        <div class="profile-menu-item">
+          <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:3px;display:flex;">
+            <span>环境细节</span>
+            <span style="font-size:10.5px;color:var(--text-4);">光线、声音、气味这些氛围描写</span>
+          </div>
+          <button type="button" class="tg-switch ${envOn ? 'on' : ''}" id="ofs-env" aria-label="环境细节开关"><span class="tg-knob"></span></button>
+        </div>
+      </div>
+
+      <div class="sec-title" style="padding-left:2px;">场景（可选）</div>
+      <div class="profile-menu-card" style="margin:0;">
+        <div class="profile-menu-item" id="ofs-scene-row">
+          <div class="profile-menu-label" style="flex-direction:column;align-items:flex-start;gap:3px;display:flex;">
+            <span>指定地点</span>
+            <span style="font-size:10.5px;color:var(--text-4);">留空则由 AI 根据线上记忆自动安排</span>
+          </div>
+          <div class="profile-menu-extra" id="ofs-scene-val">${st.sceneName && st.sceneName !== '线下之约' ? esc(st.sceneName) : '自动安排'}</div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    `,
+    onMount() {
+      const save = () => { savePersonas(); persist(); };
+      const closeBubbles = () => document.querySelectorAll('.of-opt-bubble.open').forEach(b => b.classList.remove('open'));
+
+      // 行下气泡选择器
+      function bubbleFor(key, opts, isOn, onPick) {
+        const box = document.getElementById('of-bubble-' + key);
+        box.innerHTML = opts.map(o =>
+          `<button class="of-opt-chip ${isOn(o) ? 'is-on' : ''}" data-v="${o.v}">${esc(o.label)}</button>`
+        ).join('');
+        box.querySelectorAll('.of-opt-chip').forEach(chip => {
+          chip.onclick = () => { onPick(chip.dataset.v); closeBubbles(); };
+        });
+        box.classList.add('open');
+      }
+
+      const LEN_OPTS = [120, 250, 400, 600, 800, 1000];
+      const PERSON_OPTS = [
+        { v: 'third', label: '第三人称' },
+        { v: 'second', label: '第二人称' },
+        { v: 'first', label: 'TA 的第一人称' }
+      ];
+      const TEMPO_OPTS = [
+        { v: 'slow', label: '慢热' },
+        { v: 'normal', label: '自然' },
+        { v: 'fast', label: '明快' }
+      ];
+
+      document.querySelectorAll('.of-opt-row').forEach(row => {
+        row.onclick = () => {
+          const key = row.dataset.of;
+          const wasOpen = document.getElementById('of-bubble-' + key).classList.contains('open');
+          closeBubbles();
+          if (wasOpen) return;
+          if (key === 'len') {
+            bubbleFor('len', LEN_OPTS.map(v => ({ v, label: v + ' 字' })), o => (st.outLen || 250) === o.v, v => {
+              st.outLen = parseInt(v, 10);
+              $('#ofs-len-val').textContent = `约 ${st.outLen} 字`;
+              save(); toast(`已设为约 ${st.outLen} 字`);
+            });
+          } else if (key === 'person') {
+            bubbleFor('person', PERSON_OPTS, o => (st.person || 'third') === o.v, v => {
+              st.person = v;
+              $('#ofs-person-val').textContent = { third: '第三人称（TA 的名字）', second: '第二人称（你）', first: 'TA 的第一人称（我）' }[v];
+              save();
+            });
+          } else if (key === 'tempo') {
+            bubbleFor('tempo', TEMPO_OPTS, o => (st.tempo || 'normal') === o.v, v => {
+              st.tempo = v;
+              $('#ofs-tempo-val').textContent = { slow: '慢热 · 铺垫多一点', normal: '自然 · 均匀推进', fast: '明快 · 事件感强' }[v];
+              save();
+            });
+          }
+        };
+      });
+
+      // 开关
+      $('#ofs-mind').onclick = () => { st.showMind = !(st.showMind !== false); $('#ofs-mind').classList.toggle('on', st.showMind); save(); };
+      $('#ofs-env').onclick = () => { st.envDetail = !(st.envDetail !== false); $('#ofs-env').classList.toggle('on', st.envDetail); save(); };
+      // 指定地点：改名字（简单输入）
+      $('#ofs-scene-row').onclick = () => {
+        openSubpage({
+          title: '指定地点',
+          onBack: () => openOfflineSettings(p),
+          rightBtn: `<button class="hdr-btn" id="ofs-scene-save" style="color:var(--accent);font-weight:600;font-size:14px;width:auto;padding:0 6px;">保存</button>`,
+          bodyHtml: `
+            <div class="field">
+              <div class="field-label">地点（留空 = 自动安排）</div>
+              <input class="field-input" id="ofs-scene-input" maxlength="16" value="${esc(st.sceneName && st.sceneName !== '线下之约' ? st.sceneName : '')}" placeholder="例如：海边栈道 / 老城区的天台">
+            </div>
+            <div class="field">
+              <div class="field-label">场景补充（可选）</div>
+              <textarea class="field-input" id="ofs-scene-hint" style="min-height:72px;" placeholder="时间、氛围、正在做什么…">${esc(st.sceneHint || '')}</textarea>
+            </div>
+          `,
+          onMount() {
+            $('#ofs-scene-save').onclick = () => {
+              const name = $('#ofs-scene-input').value.trim();
+              const hint = $('#ofs-scene-hint').value.trim();
+              st.sceneName = name || '线下之约';
+              st.sceneHint = hint;
+              savePersonas(); persist();
+              toast('场景已保存');
+              openOfflineSettings(p);
+            };
+          }
+        });
+      };
+    }
+  });
+}
+
+/* —— 线下模式主页面（全屏文游） —— */
+function openOfflineMode(p) {
+  const st = offlineStateOf(p);
+  const backToChat = () => {
+    // 线下页浮在聊天层之上：聊天 DOM 一直都在，只需关闭浮层；仅当当前打开的会话变了才重建，避免闪跳
+    closeSubpage();
+    if (S.openId !== p.id) { openChat(p.id); }
+    else { renderThread(); }
+  };
+
+  openSubpage({
+    title: `线下 · ${displayOf(p).name}`,
+    onBack: () => offlineExitConfirm(p, backToChat),
+    rightBtn: `
+      <button class="hdr-btn" id="of-settings" aria-label="线下设置">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+      </button>
+    `,
+    bodyCls: 'offline-body',
+    bodyHtml: `
+      <div id="of-log" class="of-log"></div>
+      <div class="of-plus-menu hidden" id="of-plus-menu"></div>
+      <div class="of-input-wrap">
+        <button class="of-plus" id="of-plus" aria-label="更多">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <input class="of-input" id="of-input" placeholder="写下你的行动或台词…" maxlength="200" autocomplete="off">
+        <button class="of-send" id="of-send" aria-label="发送">
+          <svg viewBox="0 0 24 24"><use href="#i-send"></use></svg>
+        </button>
+      </div>
+    `,
+    onMount() {
+      renderOfflineLog(p);
+      const send = () => {
+        const inp = $('#of-input');
+        const t = inp.value.trim();
+        if (!t) return;
+        inp.value = '';
+        offlineTurn(p, t);
+      };
+      $('#of-send').onclick = send;
+      $('#of-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+      $('#of-settings').onclick = () => openOfflineSettings(p);
+
+      // 长按对话流：多选 / 删除 / 全选
+      let pressTimer = null;
+      const logBox = $('#of-log');
+      const startPress = (e) => {
+        const turn = e.target.closest('.of-turn');
+        if (!turn) return;
+        pressTimer = setTimeout(() => {
+          if (!ofSelectMode) {
+            ofSelectMode = true;
+            ofSelIds = [turn.dataset.oidx];
+            renderOfflineLog(p);
+            if (navigator.vibrate) navigator.vibrate(30);
+          }
+        }, 450);
+      };
+      const cancelPress = () => { if (pressTimer) clearTimeout(pressTimer); };
+      logBox.addEventListener('touchstart', startPress, { passive: true });
+      logBox.addEventListener('touchend', cancelPress);
+      logBox.addEventListener('touchmove', cancelPress);
+      logBox.addEventListener('mousedown', startPress);
+      logBox.addEventListener('mouseup', cancelPress);
+      logBox.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const turn = e.target.closest('.of-turn');
+        if (turn && !ofSelectMode) {
+          ofSelectMode = true;
+          ofSelIds = [turn.dataset.oidx];
+          renderOfflineLog(p);
+        }
+      });
+      logBox.addEventListener('click', (e) => {
+        if (!ofSelectMode) return;
+        const turn = e.target.closest('.of-turn');
+        if (!turn || turn.dataset.oidx === undefined) return;
+        const idx = turn.dataset.oidx;
+        const i = ofSelIds.indexOf(idx);
+        if (i >= 0) { ofSelIds.splice(i, 1); turn.classList.remove('is-selected'); }
+        else { ofSelIds.push(idx); turn.classList.add('is-selected'); }
+        const cntBtn = document.getElementById('of-sel-del');
+        if (cntBtn) cntBtn.textContent = `删除（${ofSelIds.length}）`;
+      });
+
+      // ＋菜单：与聊天＋面板同款方形格子
+      const plusMenu = $('#of-plus-menu');
+      $('#of-plus').onclick = () => {
+        const st2 = offlineStateOf(p);
+        const canRetry = (st2.log || []).some(t => t.role === 'ai');
+        plusMenu.innerHTML = `
+          <div class="of-drawer-grid">
+            <div class="of-drawer-item" id="of-menu-retry" style="${canRetry ? '' : 'opacity:.4;'}">
+              <div class="dr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></div>
+              <span>重新生成</span>
+            </div>
+          </div>`;
+        plusMenu.classList.remove('hidden');
+        document.getElementById('of-menu-retry').onclick = () => {
+          plusMenu.classList.add('hidden');
+          if (canRetry) offlineRetryLast(p);
+          else toast('先写一句你的行动吧');
+        };
+      };
+
+      const logEl = $('#of-log');
+      if (logEl) logEl.scrollTop = logEl.scrollHeight;
+    }
+  });
+}
+
+/* 返回/退出时询问：保留继续 or 结束并总结（居中小卡片） */
+function offlineExitConfirm(p, backToChat) {
+  const st = offlineStateOf(p);
+  if (!st.active || !st.log.length) { backToChat(); return; }
+  const card = document.createElement('div');
+  card.className = 'of-exit-card';
+  card.innerHTML = `
+    <div class="of-exit-card-inner">
+      <div class="of-exit-title">这次线下之约…</div>
+      <div class="of-exit-sub">可以直接退出去忙别的，也可以把这次收进纪念</div>
+      <div class="of-exit-btns">
+        <button class="of-exit-btn keep">先保留，下次接着这里继续</button>
+        <button class="of-exit-btn end">结束并总结，留一张纪念卡</button>
+        <button class="of-exit-btn cancel">再玩一会儿</button>
+      </div>
+    </div>`;
+  document.body.appendChild(card);
+  const close = () => card.remove();
+  card.querySelector('.keep').onclick = () => { close(); backToChat(); };
+  card.querySelector('.end').onclick = () => { close(); endOfflineDate(p, backToChat); };
+  card.querySelector('.cancel').onclick = close;
+  card.onclick = (e) => { if (e.target === card) close(); };
+}
+
+let ofSelectMode = false;
+let ofSelIds = [];
+
+function renderOfflineLog(p) {
+  const st = offlineStateOf(p);
+  const log = $('#of-log');
+  if (!log) return;
+  log.innerHTML = st.log.map((turn, idx) => {
+    if (turn.silent) return '';
+    const selCls = (ofSelectMode && ofSelIds.includes(String(idx))) ? ' is-selected' : '';
+    const chk = ofSelectMode ? `<span class="of-check"></span>` : '';
+    if (turn.role === 'user') {
+      return `<div class="of-turn of-turn-me${selCls}" data-oidx="${idx}" data-oid="${turn.oid || ''}">${chk}<span class="of-act">${esc(turn.text)}</span></div>`;
+    }
+    // AI 叙述段：按段落拆开渲染；【内心】行渲染为粉色斜体
+    const paras = (turn.text || '').split(/\n+/).filter(Boolean);
+    return `<div class="of-turn of-turn-ai${selCls}" data-oidx="${idx}" data-oid="${turn.oid || ''}">${chk}${paras.map(t => {
+      const mMind = t.match(/^【内心】\s*(.+)$/);
+      if (mMind) return `<p class="of-mind">「${esc(mMind[1])}」</p>`;
+      return `<p class="of-narr">${esc(t)}</p>`;
+    }).join('')}</div>`;
+  }).join('') || '';
+  // 选择模式提示条
+  let bar = document.getElementById('of-select-bar');
+  if (ofSelectMode) {
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'of-select-bar';
+      bar.style.cssText = 'display:flex;align-items:center;justify-content:space-around;gap:8px;padding:9px 14px;background:rgba(255,255,255,.96);border-top:1px solid var(--line);';
+      const inputWrap = document.querySelector('.of-input-wrap');
+      if (inputWrap && inputWrap.parentNode) inputWrap.parentNode.insertBefore(bar, inputWrap);
+    }
+    bar.innerHTML = `
+      <button class="of-sel-btn" id="of-sel-all">全选</button>
+      <button class="of-sel-btn" id="of-sel-del" style="color:#C4698A;font-weight:700;">删除（${ofSelIds.length}）</button>
+      <button class="of-sel-btn" id="of-sel-cancel">取消</button>`;
+    document.getElementById('of-sel-all').onclick = () => {
+      ofSelIds = st.log.map((t, i) => (t.silent ? null : String(i))).filter(Boolean);
+      renderOfflineLog(p);
+    };
+    document.getElementById('of-sel-del').onclick = () => {
+      if (!ofSelIds.length) { toast('先选几段吧'); return; }
+      st.log = st.log.filter((t, i) => !ofSelIds.includes(String(i)));
+      ofSelIds = [];
+      ofSelectMode = false;
+      const bar2 = document.getElementById('of-select-bar');
+      if (bar2) bar2.remove();
+      savePersonas(); persist();
+      renderOfflineLog(p);
+      toast('已删除');
+    };
+    document.getElementById('of-sel-cancel').onclick = () => {
+      ofSelectMode = false; ofSelIds = [];
+      const bar2 = document.getElementById('of-select-bar');
+      if (bar2) bar2.remove();
+      renderOfflineLog(p);
+    };
+  } else if (bar) {
+    bar.remove();
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+/* —— 一轮文游：你的行动 → AI 叙述世界与 TA 的反应 —— */
+async function offlineTurn(p, userAction) {
+  const st = offlineStateOf(p);
+  st.log.push({ role: 'user', text: userAction, oid: uid(), time: Date.now() });
+  savePersonas();
+  renderOfflineLog(p);
+
+  // typing 提示
+  const log = $('#of-log');
+  const typing = document.createElement('div');
+  typing.className = 'of-turn of-turn-ai of-typing';
+  typing.innerHTML = '<p class="of-narr">…</p>';
+  if (log) { log.appendChild(typing); log.scrollTop = log.scrollHeight; }
+
+  const cfg = apiSlots();
+  const order = [];
+  if (cfg.primary.ready) order.push(cfg.primary);
+  if (cfg.secondary.ready) order.push(cfg.secondary);
+  if (!order.length) {
+    if (typing.parentNode) typing.remove();
+    toast('请先到桌面【设置中心】填好大模型 API');
+    return;
+  }
+
+  const curM = getCurrentMask();
+  const userName = (curM && curM.name) || S.account.nickname || '你';
+  const history = st.log.slice(-16).map(t =>
+    t.role === 'user' ? `${userName} 的行动/台词：${t.text}` : `叙述：${t.text}`
+  ).join('\n\n');
+
+  // 线上记忆：取最近聊天内容作为约会底色（去哪里、聊什么，由它决定）
+  const chatMemory = (S.chats[p.id] || [])
+    .filter(m => !m.recalled && m.text && m.type !== 'whisper')
+    .slice(-24)
+    .map(m => `${m.role === 'me' ? userName : displayOf(p).name}：${m.type === 'sticker' ? ('[表情' + (m.stickerName ? '：' + m.stickerName : '') + ']') : (m.type === 'transfer' ? '[转账]' : m.text)}`)
+    .join('\n');
+
+  const outLen = st.outLen || 250;
+  const person = st.person || 'third';
+  const tempo = st.tempo || 'normal';
+  const tempoRule = tempo === 'slow'
+    ? '节奏慢热：多铺垫氛围与情绪，事件推进克制'
+    : tempo === 'fast'
+      ? '节奏明快：事件推进快一点，多让事情发生'
+      : '节奏自然：均匀推进，不赶不拖';
+  const mindRule = st.showMind !== false
+    ? '- 每次叙述的最后，单独另起一行输出 TA 此刻没说出口的内心一句，格式：【内心】xxx。'
+    : '- 不要输出内心独白标注。';
+  const envRule = st.envDetail !== false
+    ? '- 适当穿插环境细节（光线/声音/气味/温度），但不要堆砌。'
+    : '- 少写环境描写，聚焦人物动作与对话。';
+  const personRule = person === 'second'
+    ? '以第二人称叙述：把用户称为「你」'
+    : person === 'first'
+      ? `以 ${displayOf(p).name} 的第一人称「我」叙述内心与所见，用户用名字称呼`
+      : `以第三人称叙述，用「${displayOf(p).name}」称呼 TA，用「${userName}」称呼用户`;
+
+  const sys = `你是一位温柔的文游叙述者，正在与用户进行「线下约会」文字扮演。
+
+【世界观】用户（${userName}）正与「${displayOf(p).name}」在现实世界里线下见面约会——这是线上聊天的延续。
+【人设】${p.prompt || p.sign || displayOf(p).name + '（人设未详写，请自然温柔地扮演）'}
+【线上记忆（约会的底色）】你们的近期聊天如下，约会的地点、话题、氛围请自然从这里生长出来（例如最近聊过想吃什么、想去哪、最近的心情），不要凭空另起炉灶：
+${chatMemory || '（暂无线上记录，请安排一个温柔自然的开场）'}
+${st.sceneName && st.sceneName !== '线下之约' ? `【指定地点】${st.sceneName}${st.sceneHint ? '：' + st.sceneHint : ''}（约会围绕这里展开）` : ''}
+【叙事起点】这是刚刚见面的时刻，除非叙述已经推进到别处。
+【你的任务】
+- ${personRule}。
+- ${tempoRule}
+- 描写场景、氛围、${displayOf(p).name}的动作、神态与台词。
+- ${envRule}
+- ${userName} 的输入是 TA 的行动或台词，你要承接它推进剧情，不要替 ${userName} 做决定或说话。
+- 对话形式：叙述段落 + ${displayOf(p).name} 的台词（用「」包裹）。分 2~3 个自然段，总共约 ${outLen} 字（可在 ±30% 内浮动）。
+${mindRule}
+- 保持文风细腻克制，像散文，像文游。不要出现"你扮演""作为AI"等出戏字样。`;
+
+  let text = '';
+  for (const api of order) {
+    try {
+      text = await streamChat(api, [
+        { role: 'system', content: sys },
+        { role: 'user', content: history + `\n\n${userName} 的行动/台词：${userAction}` }
+      ], 0.9, null);
+      break;
+    } catch (e) { text = ''; }
+  }
+  if (typing.parentNode) typing.remove();
+  if (!text) text = '（风停了一瞬，好像有什么没接上……再试一次？）';
+  st.log.push({ role: 'ai', text, oid: uid(), time: Date.now() });
+  savePersonas();
+  renderOfflineLog(p);
+}
+
+/* 重新生成上一段叙述：撤掉最后一条 AI 叙述，用同样的用户行动重跑 */
+function offlineRetryLast(p) {
+  const st = offlineStateOf(p);
+  const log = st.log || [];
+  // 找最后一条 AI 叙述，去掉它（保留其前面的用户行动）
+  let lastAi = -1;
+  for (let i = log.length - 1; i >= 0; i--) { if (log[i].role === 'ai') { lastAi = i; break; } }
+  if (lastAi < 0) { toast('还没有可以重新生成的叙述'); return; }
+  const lastUser = log[lastAi - 1] && log[lastAi - 1].role === 'user' ? log[lastAi - 1].text : null;
+  log.splice(lastAi);
+  savePersonas(); persist();
+  renderOfflineLog(p);
+  if (lastUser) {
+    // 复用原行动重新生成（不重复压入用户气泡）
+    st.log.push({ role: 'user', text: lastUser, oid: uid(), time: Date.now(), silent: true });
+    savePersonas(); persist();
+    // 静默压入：渲染时不重复显示用户气泡 → 直接调 offlineTurn 但跳过 push
+    offlineRegenerate(p, lastUser);
+  } else {
+    toast('再写一句你的行动吧');
+  }
+}
+
+/* 与 offlineTurn 相同流程，但不新增用户气泡（用于重新生成） */
+async function offlineRegenerate(p, userAction) {
+  const st = offlineStateOf(p);
+  const logEl = $('#of-log');
+  const typing = document.createElement('div');
+  typing.className = 'of-turn of-turn-ai of-typing';
+  typing.innerHTML = '<p class="of-narr">…</p>';
+  if (logEl) { logEl.appendChild(typing); logEl.scrollTop = logEl.scrollHeight; }
+
+  const cfg = apiSlots();
+  const order = [];
+  if (cfg.primary.ready) order.push(cfg.primary);
+  if (cfg.secondary.ready) order.push(cfg.secondary);
+  if (!order.length) {
+    if (typing.parentNode) typing.remove();
+    toast('请先到桌面【设置中心】填好大模型 API');
+    return;
+  }
+
+  const curM = getCurrentMask();
+  const userName = (curM && curM.name) || S.account.nickname || '你';
+  const history = st.log.slice(-16).map(t =>
+    t.role === 'user' ? `${userName} 的行动/台词：${t.text}` : `叙述：${t.text}`
+  ).join('\n\n');
+
+  const chatMemory = (S.chats[p.id] || [])
+    .filter(m => !m.recalled && m.text && m.type !== 'whisper')
+    .slice(-24)
+    .map(m => `${m.role === 'me' ? userName : displayOf(p).name}：${m.type === 'sticker' ? ('[表情' + (m.stickerName ? '：' + m.stickerName : '') + ']') : (m.type === 'transfer' ? '[转账]' : m.text)}`)
+    .join('\n');
+
+  const outLen = st.outLen || 250;
+  const person = st.person || 'third';
+  const tempo = st.tempo || 'normal';
+  const tempoRule = tempo === 'slow' ? '节奏慢热：多铺垫氛围与情绪，事件推进克制'
+    : tempo === 'fast' ? '节奏明快：事件推进快一点，多让事情发生'
+    : '节奏自然：均匀推进，不赶不拖';
+  const mindRule = st.showMind !== false
+    ? '- 每次叙述的最后，单独另起一行输出 TA 此刻没说出口的内心一句，格式：【内心】xxx。'
+    : '- 不要输出内心独白标注。';
+  const envRule = st.envDetail !== false
+    ? '- 适当穿插环境细节（光线/声音/气味/温度），但不要堆砌。'
+    : '- 少写环境描写，聚焦人物动作与对话。';
+  const personRule = person === 'second' ? '以第二人称叙述：把用户称为「你」'
+    : person === 'first' ? `以 ${displayOf(p).name} 的第一人称「我」叙述内心与所见，用户用名字称呼`
+    : `以第三人称叙述，用「${displayOf(p).name}」称呼 TA，用「${userName}」称呼用户`;
+
+  const sys = `你是一位温柔的文游叙述者，正在与用户进行「线下约会」文字扮演。
+
+【世界观】用户（${userName}）正与「${displayOf(p).name}」在现实世界里线下见面约会——这是线上聊天的延续。
+【人设】${p.prompt || p.sign || displayOf(p).name + '（人设未详写，请自然温柔地扮演）'}
+【线上记忆（约会的底色）】你们的近期聊天如下，约会的地点、话题、氛围请自然从这里生长出来：
+${chatMemory || '（暂无线上记录，请安排一个温柔自然的开场）'}
+${st.sceneName && st.sceneName !== '线下之约' ? `【指定地点】${st.sceneName}${st.sceneHint ? '：' + st.sceneHint : ''}（约会围绕这里展开）` : ''}
+【你的任务】
+- ${personRule}。
+- ${tempoRule}
+- 描写场景、氛围、${displayOf(p).name}的动作、神态与台词。
+- ${envRule}
+- ${userName} 的输入是 TA 的行动或台词，你要承接它推进剧情，不要替 ${userName} 做决定或说话。
+- 对话形式：叙述段落 + ${displayOf(p).name} 的台词（用「」包裹）。分 2~3 个自然段，总共约 ${outLen} 字（可在 ±30% 内浮动）。
+${mindRule}
+- 保持文风细腻克制，像散文，像文游。不要出现"你扮演""作为AI"等出戏字样。`;
+
+  let text = '';
+  for (const api of order) {
+    try {
+      text = await streamChat(api, [
+        { role: 'system', content: sys },
+        { role: 'user', content: history + `\n\n${userName} 的行动/台词：${userAction}` }
+      ], 0.9, null);
+      break;
+    } catch (e) { text = ''; }
+  }
+  if (typing.parentNode) typing.remove();
+  if (!text) text = '（风停了一瞬，好像有什么没接上……再试一次？）';
+  st.log.push({ role: 'ai', text, oid: uid(), time: Date.now() });
+  savePersonas();
+  renderOfflineLog(p);
+}
+
+/* —— 结束约会：留纪念卡进聊天 —— */
+function endOfflineDate(p, backToChat) {
+  const st = offlineStateOf(p);
+  const hadLog = st.active && st.log.length;
+  const sceneName = st.sceneName;
+  const turns = st.log.length;
+  st.active = false;
+  st.log = []; // 剧情已完结即清空；「可续」由下次开新约实现
+  savePersonas(); persist();
+  if (hadLog) {
+    pushMsg(p.id, {
+      id: 'm_' + uid(), role: 'them', type: 'offline_memory', time: Date.now(),
+      sceneName, turns, personaName: displayOf(p).name
+    });
+    renderTab('chat');
+  }
+  toast('约会结束了，纪念卡已放进聊天 ♡');
+  backToChat && backToChat();
+}
+
+/* —— 入口二：人设主动发的「线下邀请小邮票」—— */
+/* 渲染：msgHtml 中 type === 'offline_invite'；点击 → 接受邀请进入线下模式 */
+function acceptOfflineInvite(p, msg) {
+  const scene = OFFLINE_SCENES.find(s => s.id === (msg.scene || 'seaside')) || OFFLINE_SCENES[0];
+  pushMsg(p.id, { id: 'm_' + uid(), role: 'me', type: 'text', text: '（接受了线下之约的邀请 ♡）', time: Date.now(), unread: true });
+  closeSubpage();
+  startOfflineDate(p, scene);
+}
