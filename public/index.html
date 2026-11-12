@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="prefetch" href="chat/index.html" as="document">
+<link rel="prefetch" href="chat/style.css?v=105" as="style">
+<link rel="prefetch" href="chat/app.js?v=105" as="script">
+<link rel="prefetch" href="chat/camellia_cover.svg" as="image">
   <title>海盐白山茶 · 浮岛与微风</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -6459,8 +6463,22 @@ function escapeHtml(str) {
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');
     chatFrame.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;display:block;background:transparent;';
+    // 启动画面：替代白屏，iframe 就绪后淡出
+    const splash = document.createElement('div');
+    splash.id = 'chat-splash';
+    splash.style.cssText = 'position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(180deg,#F6F8FB 0%,#EDF2F8 100%);transition:opacity .45s ease;';
+    splash.innerHTML = '<div style="width:52px;height:52px;border-radius:50%;background:url(\'chat/camellia_cover.svg\') center/cover;animation:camelliaBreath 1.6s ease-in-out infinite;"></div>'
+      + '<div style="font-size:12.5px;color:#8E9BAE;letter-spacing:2px;">信笺装帧中 · · ·</div>'
+      + '<style>@keyframes camelliaBreath{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.12);opacity:1}}</style>';
+    __chatLayer.appendChild(splash);
     __chatLayer.appendChild(chatFrame);
     document.body.appendChild(__chatLayer);
+    chatFrame.addEventListener('load', function(){
+      setTimeout(function(){
+        splash.style.opacity = '0';
+        setTimeout(function(){ if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 500);
+      }, 120);
+    });
     // iOS Safari（浏览器模式）布局只到小白条上沿，导致层盖不到底：层下探60px，安全区双向补偿
     const getSafeB = function() {
       try {
