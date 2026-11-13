@@ -3398,3 +3398,15 @@ html[data-theme="midnight"] .of-plus-item { background: rgba(24, 32, 43, 0.95); 
   color: var(--text-2); cursor: pointer;
 }
 .of-drawer-item .dr-ico { width: 52px; height: 52px; }
+
+
+/* ===== iOS 26 standalone 白底修复（WebKit bug 301108）=====
+   iOS26 添加到主屏后 viewport-fit=cover 失效，height:100% 被扣掉安全区，
+   底部露出白/黑底。改用 100vh 绕过；父页面注入的 --app-h 为最终裁决。 */
+@media (display-mode: standalone) {
+  html, body { height: 100vh; }
+}
+.app { height: var(--app-h, 100%) !important; }
+.pane-wrap { height: var(--app-h, 100%) !important; }
+/* 底部安全区兜底：env 错报0时也保住20px不贴Home条 */
+:root { --safe-b-max: max(20px, env(safe-area-inset-bottom, 0px)); }

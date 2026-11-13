@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="sea-salt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <link rel="prefetch" href="chat/index.html" as="document">
 <link rel="prefetch" href="chat/style.css?v=124" as="style">
 <link rel="prefetch" href="chat/app.js?v=124" as="script">
@@ -6481,6 +6481,12 @@ function escapeHtml(str) {
         if (d && d.documentElement) {
           d.documentElement.style.setProperty('--app-h', (h + 60) + 'px');
           d.documentElement.style.setProperty('--safe-b', (60 + getSafeB()) + 'px');
+          if (!d.getElementById('ios26-fix')) {
+            const st = d.createElement('style');
+            st.id = 'ios26-fix';
+            st.textContent = '@media (display-mode: standalone){html,body{height:100vh!important}}';
+            d.head.appendChild(st);
+          }
         }
       } catch (e) {}
     };
