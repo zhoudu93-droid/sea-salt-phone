@@ -6460,7 +6460,7 @@ function escapeHtml(str) {
     }
     __chatLayer = document.createElement('div');
     __chatLayer.id = 'camellia-chat-layer';
-    __chatLayer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:-60px;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
+    __chatLayer.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#FFFFFF;display:block;opacity:0;transform:translateX(60px);transition:opacity .36s ease,transform .36s cubic-bezier(.32,.72,.36,1);';
     const chatFrame = document.createElement('iframe');
     chatFrame.src = 'chat/index.html';
     chatFrame.setAttribute('allow', 'clipboard-write');
@@ -6478,12 +6478,12 @@ function escapeHtml(str) {
     };
     __fitChatNow = function() {
       const h = Math.max(document.documentElement.clientHeight, window.innerHeight);
-      __chatLayer.style.height = (h + 60) + 'px';
+      __chatLayer.style.height = h + 'px';
       try {
         const d = chatFrame.contentDocument;
         if (d && d.documentElement) {
-          d.documentElement.style.setProperty('--app-h', (h + 60) + 'px');
-          d.documentElement.style.setProperty('--safe-b', (60 + getSafeB()) + 'px');
+          d.documentElement.style.setProperty('--app-h', h + 'px');
+          d.documentElement.style.setProperty('--safe-b', getSafeB() + 'px');
           if (!d.getElementById('ios26-fix')) {
             const st = d.createElement('style');
             st.id = 'ios26-fix';
