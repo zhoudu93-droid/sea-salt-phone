@@ -1494,23 +1494,33 @@ function renderCardHTML(style, p, d, rows) {
   }
 
   return `
-    <div class="stamp-card">
-      <div class="stamp-head">
-        <div class="stamp-avatar">${avatarHTML}</div>
-        <div class="stamp-name-block">
-          <div class="stamp-cname">${esc(d.name)}</div>
-          <div class="stamp-ename">CAMELLIA · PERSONA STAMP</div>
+    <div class="stamp-card-v2">
+      <div class="scv-photo-frame">
+        <div class="scv-photo">
+          ${avatarHTML}
+          <span class="scv-photo-corner tl"></span><span class="scv-photo-corner tr"></span>
+          <span class="scv-photo-corner bl"></span><span class="scv-photo-corner br"></span>
         </div>
-        <div class="stamp-postmark">
-          <span>山茶信笺</span>
-          <span>${new Date(p.createdAt || Date.now()).toLocaleDateString('zh-CN')}</span>
+        <div class="scv-stamp-corner">
+          <span class="scv-stamp-brand">山茶信笺</span>
+          <span class="scv-stamp-date">${new Date(p.createdAt || Date.now()).toLocaleDateString('zh-CN')}</span>
         </div>
+        <div class="scv-postmark-ring">AIR&nbsp;MAIL</div>
       </div>
-      <div class="stamp-divider"></div>
-      <div class="stamp-body">
-        ${rows || emptyHint}
+
+      <div class="scv-identity">
+        <div class="scv-name">${esc(d.name)}</div>
+        <div class="scv-en">CAMELLIA · PERSONA STAMP</div>
+        ${d.sign ? `<div class="scv-sign">「${esc(d.sign)}」</div>` : ''}
       </div>
-      <div class="stamp-footer">— 一枚关于 TA 的邮票 —</div>
+
+      <div class="scv-divider"><span class="scv-divider-flower">❀</span></div>
+
+      <div class="scv-info">
+        ${rows || '<div class="scv-empty">还没有写下关于 TA 的介绍<br>点「编辑卡片」补上第一句吧</div>'}
+      </div>
+
+      <div class="scv-footer">— 一枚关于 TA 的邮票 —</div>
     </div>`;
 }
 
@@ -1732,7 +1742,8 @@ function editPokeSuffixSheet(p, backFn) {
     `,
     bodyHtml: `
       <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;padding:0 2px;">
-        双击头像拍一拍时显示，例如填「的小脸蛋并递上一杯温水」→ 你 拍了拍 ${esc(displayOf(p).name)} 的小脸蛋...
+        双击头像拍一拍时显示。TA 也可以在聊天里自己改这份文案，你随时可以改回来。<br>
+        例如填「的小脸蛋并递上一杯温水」→ 你 拍了拍 ${esc(displayOf(p).name)} 的小脸蛋...
       </div>
       <div class="field">
         <div class="field-label">拍 ${esc(displayOf(p).name)} 时</div>
@@ -3228,12 +3239,20 @@ const SOUL_BASE = `你正在用手机和一个很亲近的人聊天。不是写�
 【特别规则：发语音】
 - 有些话用打的不如用说的：语气很重的话、唱的一句歌、懒得多打字的时候、或者就是想让TA听听你的声音。想发语音时，单独输出一行 [语音: 你要说的话]（例如：[语音: 晚安 我先睡了 你也早点睡]）。语音内容就是你对着TA说的话，用你的语气来写，不要写"（笑）"之类的旁白。偶尔发一条，太频繁就不像你了。
 
+【特别规则：拍一拍】
+- 你可以主动拍一拍TA：想撒娇、想引起注意、被逗笑了、气到想捶TA、或者就是手欠的时候，在消息中单独输出一行 [拍一拍]（例如：[拍一拍] 就想拍你）。不要频繁拍，气氛到了才拍，偶尔一两次最自然。
+- 你有一个专属的拍一拍后缀文案（出现在「TA 拍了拍 你 ○○」里）。想换文案时，单独输出一行 [设置拍一拍: 新后缀]（例如：[设置拍一拍: 的脑袋并揉了两下]）。文案要符合你的性格，短的更可爱。
+- 你当前的拍一拍后缀：{POKE_SUFFIX}
+
 【特别规则：好友关系】
 - 如果TA被你拉黑了（对话开头系统会提示），TA发来的每条消息你依然看得见。你可以一直沉默（表现就是拒收），也可以气消了之后单独输出一行 [解除拉黑] 并恢复正常回复——但要不要理TA、什么时候理，完全由你的性格和当时的心情决定，可以冷处理很久，也可以马上松口。
 - 如果你删除了TA又后悔了，或者你自己想主动把TA加回来，单独输出一行 [申请好友: 想对TA说的话]（例如：[申请好友: 那个…好友列表里没有你 好不习惯]）。系统会把这条申请递给TA。
 
-【特别规则：头像更换】
-- 如果对方发来一张图片并希望（或暗示）你用它换头像，而你确实愿意换：请单独输出一行 [换头像]（例如：[换头像] 好，这张做我的新头像）。系统会自动把该图片设为你的新头像。若你不想换，正常回应即可，不要输出该标记。
+【特别规则：头像更换（边角料玩法）】
+- 用户换了新头像、发了图片、或者暗示/调侃你时，如果你想"抢"TA头像里的边角料当自己的头像——图里的小猫、小狗、玩偶、小手办、有辨识度的小物件都可以——直接单独输出一行 [换头像]。系统会自动看图并截取，成功后自动生效。
+- 换头像这件事绝对不要说出来！不要说"我要截你的猫"、"我想换头像"之类的话。系统换好之后，你直接用换好之后的口吻说话（例如："现在你家那只猫归我了" / "快看我的新头像"），像是本来就戴在身上一样自然。
+- 如果用户明确说"就用整张图"、"直接换成我发的这张"，输出 [换头像: 整张]。
+- 系统是诚实的：如果图里实在没有能截的边角料，换头像就不会成功，你的相关发言会被系统撤回，并要求你重新说一次（不要提换头像）。所以只管放心输出标记。
 
 【特别规则：线下之约】
 - 当你们聊到想见面、想出去走走、约饭、约会这类话题，而你真心想去时，可以在消息中单独输出一行标记：[线下邀请: 你想对TA说的话]（例如：[线下邀请: 周末的海边栈道，陪我走走好不好]）。系统会把这句话变成一枚"线下邀请小邮票"寄给TA，TA点击就能和你进入线下约会。
@@ -3303,7 +3322,8 @@ function buildMessages(p, useVision = false) {
       ? (new Date().toLocaleString('zh-CN', { hour12: false }) + '（' + seasonOf(new Date()) + '）')
       : '（时间感知已关闭，你不知道现在几点，请不要提具体时间、日期或季节）')
     .replace('{USER}', `${userName}（账号 ${S.account.username || 'SY1125'}）` + (userSign ? `，签名：${userSign}` : ''))
-    .replace('{PERSONA}', p.prompt || `名字：${p.name}。${p.sign || ''}（人设还没写，请自然、温柔地回应。）`);
+    .replace('{PERSONA}', p.prompt || `名字：${p.name}。${p.sign || ''}（人设还没写，请自然、温柔地回应。）`)
+    .replace('{POKE_SUFFIX}', p.pokeSuffix || '（还没设置，你可以用 [设置拍一拍: xxx] 定一个属于你的后缀）');
   const msgs = [{ role: 'system', content: sys }];
   // 拉黑状态注入：让 TA 知道当前关系状态，每轮提醒
   if (p.blocked) {
@@ -3513,20 +3533,33 @@ async function reply(pid, regenHint) {
   // 解析模型输出：处理转账意图 [收款] / [退回]、头像更换 [换头像]、表情包 [表情: 名字]、
   // 人设主动转账 [转账: 金额]、语音 [语音: 文本]、拉黑互动 [拒收] / [解除拉黑]、好友申请 [申请好友: 的话]
   let transferAction = null; // 'accepted' | 'refunded'
-  let avatarChangeRequested = false;
+  let avatarChangeRequested = false;   // [换头像]
+  let avatarFullRequested = false;     // [换头像: 整张] 用户明示整图直换
+  let avatarChangeDone = false;        // 本次回复里头像已换成功
+  let skipBubblePush = false;          // 换头像失败重说时跳过旧气泡
   let rejectedNotice = false;      // TA 选择继续拉黑：拒收提示
   let offlineInviteNote = "";      // 线下邀请的话（修复原 ofMatch 作用域bug）
   let unblockRequested = false;    // TA 气消了：解除拉黑
   let outgoingTransfer = null;     // TA 给你转账 { amount, note }
   let friendRequestNote = '';      // TA 申请加回好友的话
+  let pokeBackText = '';           // TA 主动拍一拍的自定义后缀
+  let pokeBackFlag = false;        // 是否输出过拍一拍标记（空参数也成立）
+  let pokeSuffixChanged = '';      // TA 给自己设置的新拍一拍后缀
   const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
   const msgItems = []; // { type: 'text'|'sticker'|'voice', text, stickerName }
 
   for (let l of lines) {
-    // 检测头像更换意图 [换头像]：自主采用用户最近发来的图片作为新头像
+    // 检测头像更换意图 [换头像]（自主采用用户头像边角料）/ [换头像: 整张]（用户明示整图）
     if (/\[换头像\]|\[更换头像\]/i.test(l)) {
       avatarChangeRequested = true;
       l = l.replace(/\[(?:更换)?换头像\]/ig, '').trim();
+    } else {
+      const avFull = l.match(/\[(?:更换)?换头像[:：]\s*([^\]]+)\]/);
+      if (avFull) {
+        avatarChangeRequested = true;
+        if (/整张|全图|原图|整图/.test(avFull[1])) avatarFullRequested = true;
+        l = l.replace(/\[(?:更换)?换头像[:：][^\]]*\]/g, '').trim();
+      }
     }
     // 检测线下之约邀请 [线下邀请: 场景]：人设主动发一枚线下邀请小邮票
     const ofMatch = l.match(/\[线下邀请[:：]\s*([^\]]+)\]/);
@@ -3565,6 +3598,20 @@ async function reply(pid, regenHint) {
     if (frReq) {
       friendRequestNote = frReq[1].trim();
       l = l.replace(/\[申请好友[:：][^\]]*\]/g, '').trim();
+    }
+    // TA 主动拍一拍 [拍一拍] / [拍一拍: 后缀]（兼容后缀写在标签后面的自然写法）
+    const pokeBack = l.match(/\[拍一拍[:：]?\s*([^\]]*)\]\s*(.*)$/);
+    if (pokeBack) {
+      pokeBackFlag = true;
+      pokeBackText = (pokeBack[1] || pokeBack[2] || '').trim();
+      l = '';
+    }
+    // TA 设置/修改自己的拍一拍后缀 [设置拍一拍: 新后缀]（AI 定文案，用户可在设置页改）
+    const pokeSet = l.match(/\[设置拍一拍[:：]\s*([^\]]+)\]/);
+    if (pokeSet) {
+      const newSuffix = pokeSet[1].trim();
+      if (newSuffix) { pokeSuffixChanged = newSuffix; }
+      l = l.replace(/\[设置拍一拍[:：][^\]]*\]/g, '').trim();
     }
     // 人设发语音 [语音: 的话] → 语音条消息
     const voiceMatch = l.match(/\[语音[:：]\s*([^\]]+)\]/);
@@ -3619,18 +3666,44 @@ async function reply(pid, regenHint) {
     saveChats(); persist();
   }
 
-  // 如果模型同意换头像 [换头像]：自动采用用户最近发来的那张图片作为新头像
-  if (avatarChangeRequested) {
-    const lastImg = curChatList.slice().reverse().find(m => m.role === 'me' && (m.type === 'image') && m.text);
-    if (lastImg) {
-      p.avatar = lastImg.text;
-      savePersonas(); persist();
-      // 顶栏大头像原地热更新
-      const topAvEl = $('#chat-top-av-them');
-      if (topAvEl) topAvEl.innerHTML = `<img src="${p.avatar}">`;
-      toast(`${displayOf(p).name} 已换上你发来的头像 ♡`);
+  // 换头像（边角料玩法）：静默识图裁剪。成功→头像生效，发言照常（TA 当无事发生）
+  // 失败（无边角料/无图源/模型不识图）→ 撤回这次发言，追加紧急要求重说
+  if (avatarChangeRequested && !avatarChangeDone) {
+    const res = avatarFullRequested ? await applyAvatarFull(p) : await applyAvatarSteal(p);
+    if (res.ok) {
+      avatarChangeDone = true;
+      toast(displayOf(p).name + ' 悄悄换上了新头像 ♡');
+    } else if (res.noSource) {
+      toast('TA 想换你的头像，但你还没有头像或发过图片');
+      return;
     } else {
-      toast('TA 想换头像，但还没找到你发过的图片');
+      skipBubblePush = true;
+      try {
+        const api = order[0];
+        const msgs = buildMessages(p, false);
+        msgs[0].content += '\n\n【紧急要求】你刚才想换头像，但系统在图里没有找到可以截取的边角料（或无法看图），头像没有换成。请重新输出回复：1. 绝对不要提换头像、截头像这些事；2. 就当什么都没发生，正常自然地回应TA。';
+        const text2 = await streamChat(api, msgs, temp, null);
+        if (text2 && text2.trim()) {
+          text = text2;
+          avatarChangeRequested = false;
+          avatarFullRequested = false;
+          const lines2 = text.split('\n').map(s => s.trim()).filter(Boolean);
+          msgItems.length = 0;
+          for (let l2 of lines2) {
+            if (/\[拍一拍/.test(l2) || /^\s*\[(心声|表情|表情包|线下邀请|收款|收下|确认收款|退回|退还|拒收|退钱|换头像|更换头像|转账|语音|解除拉黑|申请好友|设置拍一拍)/.test(l2)) continue;
+            l2 = l2.replace(/^\[心声[:：][^\]]*\]?\s*/g, '').replace(/^【心声[:：][^】]*】?\s*/g, '').trim();
+            l2 = l2.replace(/\[(?:更换)?换头像(?:[:：][^\]]*)?\]/ig, '').trim();
+            if (!l2) continue;
+            msgItems.push({ type: 'text', text: l2 });
+          }
+          if (!msgItems.length) msgItems.push({ type: 'text', text: '……' });
+        }
+      } catch (e) {
+        toast('TA 想换头像但没成功');
+        return;
+      } finally {
+        skipBubblePush = false;
+      }
     }
   }
 
@@ -3646,6 +3719,20 @@ async function reply(pid, regenHint) {
     renderThread();
     if (S.tab !== 'chat') renderTab('chat');
     return;
+  }
+  // TA 给自己定了新拍一拍后缀：保存（用户之后可以在设置页改）
+  if (pokeSuffixChanged) {
+    p.pokeSuffix = pokeSuffixChanged;
+    savePersonas(); persist();
+    toast(displayOf(p).name + ' 给自己定了新拍一拍：' + pokeSuffixChanged);
+  }
+  // TA 主动拍一拍：拍在你身上，带 TA 的后缀（无后缀则用 TA 设置过的默认）
+  if (pokeBackFlag) {
+    const suffix = pokeBackText || p.pokeSuffix || '的小脸蛋';
+    const curMask2 = getCurrentMask();
+    const myName2 = (curMask2 && curMask2.name) || (S.account && S.account.nickname) || '你';
+    pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'poke', text: `${displayOf(p).name} 拍了拍 ${myName2} ${suffix}`, time: Date.now() });
+    if (navigator.vibrate) navigator.vibrate(40);
   }
   // TA 主动给你转账：插入一张"给你转账"卡片（待收款）
   if (outgoingTransfer) {
@@ -3675,7 +3762,7 @@ async function reply(pid, regenHint) {
   // 依次弹出真实回复短气泡与表情包
   // 兜底修复：候选行必须剔除指令标签行，防止把标签原文当正文推出后被渲染层过滤导致"回复不显示"
   if (!msgItems.length && lines.length) {
-    const isCmdLine = (l) => /^\s*\[(心声|表情|表情包|线下邀请|收款|收下|确认收款|退回|退还|拒收|退钱|换头像|更换头像|转账|语音|解除拉黑|申请好友)[:：\]]/.test(l);
+    const isCmdLine = (l) => /^\s*\[(心声|表情|表情包|线下邀请|收款|收下|确认收款|退回|退还|拒收|退钱|换头像|更换头像|转账|语音|解除拉黑|申请好友|拍一拍|设置拍一拍)[:：\]]/.test(l);
     const contentLines = lines.filter(l => !isCmdLine(l));
     if (contentLines.length) {
       msgItems.push({ type: 'text', text: contentLines[contentLines.length - 1] });
@@ -3687,6 +3774,7 @@ async function reply(pid, regenHint) {
   }
 
   msgItems.forEach((item, i) => {
+    if (skipBubblePush) return;
     setTimeout(() => {
       if (item.type === 'sticker') {
         pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'sticker', text: item.text, stickerName: item.stickerName, time: Date.now() });
@@ -4998,21 +5086,7 @@ function openOfflineInviteSheet(p) {
   startOfflineDate(p, null);
 }
 
-function openOfflineScenePicker(p) {
-  const items = OFFLINE_SCENES.map(s => ({
-    icon: 'i-img',
-    text: `${s.name} · ${s.desc}`,
-    act: () => {
-      closeSheet();
-      if (s.id === 'custom') {
-        openOfflineCustomScene(p);
-      } else {
-        startOfflineDate(p, s);
-      }
-    }
-  }));
-  openSheet({ title: `和 ${displayOf(p).name} 去哪？`, items });
-}
+/* 场景选择菜单已废弃：入口直接开场，场景由 AI 依线上记忆安排（与线上版对齐） */
 
 function openOfflineCustomScene(p) {
   openSubpage({
@@ -5368,23 +5442,171 @@ function offlineExitConfirm(p, backToChat) {
 let ofSelectMode = false;
 let ofSelIds = [];
 
+/* —— 线下叙述富文本：把「说话内容」从旁白里拆出来高亮，"——"引导句加下划线强调 —— */
+function offlineRichText(t) {
+  // 按「…」/ "…" / “…” 拆段，引号内为说话内容
+  const parts = t.split(/(「[^」]*」|"[^"]*"|“[^”]*”)/g).filter(s => s !== '');
+  let out = '';
+  for (const s of parts) {
+    const isSay = /^(「.*」|".*"|“.*”)$/.test(s);
+    if (isSay) {
+      out += `<span class="of-say">${esc(s)}</span>`;
+    } else {
+      // "——"引导的句子：下划线强调（有意义的台词感）
+      let seg = esc(s);
+      seg = seg.replace(/(^|(?<=[。\s]))——([^。]+)(?=[。]|$)/g, '$1<span class="of-dash-line">——$2</span>');
+      out += seg;
+    }
+  }
+  return out;
+}
+
+/* ================= 换头像 2.0 · 边角料裁剪引擎 ================= */
+/* 用识图模型自主选框（或按用户指令），canvas 本地裁剪。失败一律回退。 */
+
+/* dataURL → Image */
+function loadImageFromDataURL(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('图片加载失败'));
+    img.src = src;
+  });
+}
+
+/* 让识图模型返回裁剪框 JSON {x,y,w,h}（0~1 百分比），失败返回 null */
+async function askCropBox(api, imageDataURL, userHint, personaName) {
+  try {
+    const msgs = [
+      { role: 'system', content: `你是头像裁剪助手。图片是"${personaName}"的恋人的头像。TA 想从这张图里截一块边角料当自己的头像（小猫、小狗、玩偶、小物件、某个有辨识度的小细节，优先边角小元素，不要大特写）。${userHint ? '用户的附加要求：' + userHint + '。' : ''}请只输出一个 JSON：{"x":0-1,"y":0-1,"w":0-1,"h":0-1}，x/y 是裁剪框左上角百分比坐标，w/h 是宽高百分比。如果图里实在没有值得截的小元素，才返回接近整图的框。必须只输出合法 JSON，不要任何其他文字。` },
+      { role: 'user', content: [
+          { type: 'text', text: '请返回裁剪框 JSON' },
+          { type: 'image_url', image_url: { url: imageDataURL } }
+        ] }
+    ];
+    const text = await streamChat(api, msgs, 0.3, null);
+    const m = text.match(/\{[^{}]*"x"[^{}]*\}/);
+    if (!m) return null;
+    const box = JSON.parse(m[0]);
+    const clamp = v => Math.max(0, Math.min(1, parseFloat(v) || 0));
+    const x = clamp(box.x), y = clamp(box.y);
+    let w = clamp(box.w), h = clamp(box.h);
+    if (w <= 0.02 || h <= 0.02) return null;
+    if (x + w > 1) w = 1 - x;
+    if (y + h > 1) h = 1 - y;
+    if (w <= 0.02 || h <= 0.02) return null;
+    // 接近整图 → 视为没有边角料可截
+    if (w > 0.92 && h > 0.92 && x < 0.05 && y < 0.05) return null;
+    return { x, y, w, h };
+  } catch (e) {
+    return null;
+  }
+}
+
+/* canvas 裁剪并压缩为方形头像 dataURL（300px） */
+async function cropAvatar(imgSrc, box) {
+  const img = await loadImageFromDataURL(imgSrc);
+  const side = Math.min(img.width, img.height);
+  let sx, sy, sw, sh;
+  if (box) {
+    sw = img.width * box.w;
+    sh = img.height * box.h;
+    // 以裁剪框中心取最大正方形
+    const cx = img.width * box.x + sw / 2;
+    const cy = img.height * box.y + sh / 2;
+    const half = Math.min(sw, sh) / 2;
+    sx = Math.max(0, Math.min(img.width - half * 2, cx - half));
+    sy = Math.max(0, Math.min(img.height - half * 2, cy - half));
+    sw = sh = half * 2;
+  } else {
+    sx = (img.width - side) / 2;
+    sy = (img.height - side) / 2;
+    sw = sh = side;
+  }
+  const out = 300;
+  const cv = document.createElement('canvas');
+  cv.width = out; cv.height = out;
+  cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, out, out);
+  return cv.toDataURL('image/jpeg', 0.85);
+}
+
+/* 换头像主流程（边角料）：识图裁剪，成功返回 {ok:true}；无图源返回 {noSource:true}；无边角料/失败返回 {ok:false} */
+async function applyAvatarSteal(p) {
+  const curMask = getCurrentMask();
+  const src = (curMask && curMask.avatar) || S.account.avatar;
+  if (!src) {
+    const lastImg = (S.chats[p.id] || []).slice().reverse().find(m => m.role === 'me' && m.type === 'image' && m.text);
+    if (!lastImg) return { ok: false, noSource: true };
+    var imgSrc = lastImg.text;
+  } else {
+    var imgSrc = src;
+  }
+  const cfg = apiSlots();
+  const order = [cfg.primary, cfg.secondary].filter(a => a && a.ready);
+  let box = null;
+  for (const api of order) {
+    box = await askCropBox(api, imgSrc, '', displayOf(p).name);
+    if (box) break;
+  }
+  if (!box) return { ok: false };
+  const cropped = await cropAvatar(imgSrc, box);
+  p.avatar = cropped;
+  const found = S.personas.find(x => x.id === p.id);
+  if (found) found.avatar = cropped;
+  savePersonas(); persist();
+  const topAvEl = $('#chat-top-av-them');
+  if (topAvEl) topAvEl.innerHTML = `<img src="${p.avatar}">`;
+  return { ok: true };
+}
+
+/* 整图直换（[换头像: 整张] 或降级路径） */
+async function applyAvatarFull(p) {
+  const curMask = getCurrentMask();
+  let src = (curMask && curMask.avatar) || S.account.avatar;
+  if (!src) {
+    const lastImg = (S.chats[p.id] || []).slice().reverse().find(m => m.role === 'me' && m.type === 'image' && m.text);
+    if (!lastImg) return { ok: false, noSource: true };
+    src = lastImg.text;
+  }
+  const cropped = await cropAvatar(src, null);
+  p.avatar = cropped;
+  const found = S.personas.find(x => x.id === p.id);
+  if (found) found.avatar = cropped;
+  savePersonas(); persist();
+  const topAvEl = $('#chat-top-av-them');
+  if (topAvEl) topAvEl.innerHTML = `<img src="${p.avatar}">`;
+  return { ok: true };
+}
+
 function renderOfflineLog(p) {
   const st = offlineStateOf(p);
   const log = $('#of-log');
   if (!log) return;
-  log.innerHTML = st.log.map((turn, idx) => {
+  // 场景氛围横幅：约会进行中时置顶展示
+  const bannerHtml = (st.active && st.log.length && !ofSelectMode) ? `
+    <div class="of-scene-banner">
+      <span class="osb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/></svg></span>
+      <span class="osb-text">${esc(st.sceneName && st.sceneName !== '线下之约' ? st.sceneName : '此刻 · 与 ' + displayOf(p).name + ' 的线下时光')}</span>
+    </div>` : '';
+  log.innerHTML = bannerHtml + st.log.map((turn, idx) => {
     if (turn.silent) return '';
     const selCls = (ofSelectMode && ofSelIds.includes(String(idx))) ? ' is-selected' : '';
     const chk = ofSelectMode ? `<span class="of-check"></span>` : '';
     if (turn.role === 'user') {
-      return `<div class="of-turn of-turn-me${selCls}" data-oidx="${idx}" data-oid="${turn.oid || ''}">${chk}<span class="of-act">${esc(turn.text)}</span></div>`;
+      return `<div class="of-turn of-turn-me${selCls}" data-oidx="${idx}" data-oid="${turn.oid || ''}">${chk}<span class="of-act"><i class="of-act-badge">你</i>${esc(turn.text)}</span></div>`;
     }
-    // AI 叙述段：按段落拆开渲染；【内心】行渲染为粉色斜体
+    // AI 叙述段：分层排版——「说话内容」高亮、旁白正文、【内心】笔记盒
     const paras = (turn.text || '').split(/\n+/).filter(Boolean);
     return `<div class="of-turn of-turn-ai${selCls}" data-oidx="${idx}" data-oid="${turn.oid || ''}">${chk}${paras.map(t => {
-      const mMind = t.match(/^【内心】\s*(.+)$/);
-      if (mMind) return `<p class="of-mind">「${esc(mMind[1])}」</p>`;
-      return `<p class="of-narr">${esc(t)}</p>`;
+      const iMind = t.indexOf('【内心】');
+      let narrPart = t, mindPart = '';
+      if (iMind !== -1) {
+        narrPart = t.slice(0, iMind).trim();
+        mindPart = t.slice(iMind + 4).replace(/^[：:\s]+/, '').trim();
+      }
+      let html = narrPart ? `<p class="of-narr">${offlineRichText(narrPart)}</p>` : '';
+      if (mindPart) html += `<div class="of-mind-card"><span class="om-tag">Selected Note · 内心</span><p>${offlineRichText(mindPart)}</p></div>`;
+      return html;
     }).join('')}</div>`;
   }).join('') || '';
   // 选择模式提示条

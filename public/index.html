@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <link rel="prefetch" href="chat/index.html" as="document">
-<link rel="prefetch" href="chat/style.css?v=132" as="style">
-<link rel="prefetch" href="chat/app.js?v=133" as="script">
+<link rel="prefetch" href="chat/style.css?v=135" as="style">
+<link rel="prefetch" href="chat/app.js?v=142" as="script">
   <title>海盐白山茶 · 浮岛与微风</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1855,19 +1855,20 @@
     }
 
     .mini-chip-btn {
-      font-size: 11px;
-      padding: 2px 7px;
-      border-radius: 6px;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 10px;
       background: var(--accent-light, #ebf4ff);
       color: var(--accent-color, #3a8ee6);
       border: 1px solid rgba(58,142,230,0.25);
       cursor: pointer;
-      font-weight: 500;
+      font-weight: 600;
     }
+    .mini-chip-btn:active { opacity: .8; }
     .mini-chip-select {
-      font-size: 11px;
-      padding: 2px 4px;
-      border-radius: 6px;
+      font-size: 13px;
+      padding: 8px 10px;
+      border-radius: 10px;
       background: transparent;
       color: var(--text-sub, #666);
       border: 1px solid rgba(0,0,0,0.1);
@@ -8636,7 +8637,35 @@ function escapeHtml(str) {
   function psEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function psUid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function psReadJSON(key, dft){ try{ var v=JSON.parse(localStorage.getItem(key)); return v==null?dft:v; }catch(e){ return dft; } }
-  function psPersonaKey(){ var u=localStorage.getItem(PS_K.curUid); return u ? ('pchat_'+u+'_personas') : null; }
+  function psPersonaKey(){
+    var u=localStorage.getItem(PS_K.curUid);
+    if(!u) return null;
+    // 聊天端存的是 JSON 字符串（带引号），必须 parse 后再拼键；解析失败才用原值
+    try { var parsed = JSON.parse(u); if (parsed) u = String(parsed); } catch(e) {}
+    return 'pchat_'+u+'_personas';
+  }
+  // 一次性迁移：把历史垃圾键（键名带引号）里的人设合并回正确键（去重）
+  (function psMigrateQuotedKeys(){
+    try {
+      var raw = localStorage.getItem(PS_K.curUid);
+      if (!raw) return;
+      var uid; try { uid = JSON.parse(raw); } catch(e) { return; }
+      if (!uid || typeof uid !== 'string') return;
+      var badKey = 'pchat_"' + uid + '"_personas';
+      var goodKey = 'pchat_' + uid + '_personas';
+      var bad = localStorage.getItem(badKey);
+      if (!bad) return;
+      var good = psReadJSON(goodKey, []);
+      var badList = psReadJSON(badKey, []);
+      if (!Array.isArray(badList) || !badList.length) { localStorage.removeItem(badKey); return; }
+      var known = {}; (Array.isArray(good)?good:[]).forEach(function(p){ if(p&&p.id) known[p.id]=1; });
+      (Array.isArray(good)?good:[]);
+      var merged = (Array.isArray(good)?good:[]).slice();
+      badList.forEach(function(p){ if(p&&p.id&&!known[p.id]){ merged.push(p); known[p.id]=1; } });
+      localStorage.setItem(goodKey, JSON.stringify(merged));
+      localStorage.removeItem(badKey);
+    } catch(e) {}
+  })();
   function psGetList(){ var k=psPersonaKey(); if(!k) return []; var a=psReadJSON(k,[]); return Array.isArray(a)?a:[]; }
   function psSaveList(arr){ var k=psPersonaKey(); if(!k){ alert('还没有登录过山茶信笺，先去信笺里注册/登录一次，人设才有归属的账号哦'); return false; } localStorage.setItem(k, JSON.stringify(arr)); return true; }
   function psInitial(n){ return (n||'').trim().charAt(0) || '茶'; }

@@ -2583,6 +2583,136 @@ html[data-theme="midnight"] .chat-body {
 }
 
 /* 邮票名片样式（复古邮票 + 齿孔边缘 + 全信息呈现） */
+/* ============ 邮票名片 V2 · INS 照片框风格 ============ */
+.stamp-card-v2 {
+  position: relative;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(247, 205, 216, 0.14), transparent 42%),
+    radial-gradient(circle at 85% 92%, rgba(234, 220, 247, 0.16), transparent 45%),
+    linear-gradient(168deg, #FDFCF7 0%, #FAF6EE 100%);
+  border-radius: 22px;
+  padding: 24px 20px 16px;
+  box-shadow: 0 10px 34px -10px rgba(120, 100, 110, 0.25), 0 2px 8px rgba(120, 100, 110, 0.08);
+  border: 1px solid rgba(150, 130, 110, 0.16);
+  color: #3A4354;
+  overflow: hidden;
+}
+/* 齿孔边：四周一圈完整打孔 */
+.stamp-card-v2::before {
+  content: '';
+  position: absolute; inset: 6px;
+  border-radius: 16px;
+  background-image: radial-gradient(circle at 4px 4px, transparent 2.2px, rgba(150,130,110,0.0) 2.4px);
+  pointer-events: none;
+}
+.stamp-card-v2::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 0;
+  pointer-events: none;
+}
+.scv-photo-frame {
+  position: relative;
+  display: flex; justify-content: center;
+  padding: 10px 0 4px;
+}
+.scv-photo {
+  position: relative;
+  width: 108px; height: 108px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 8px 22px -8px rgba(180, 140, 150, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(-1.6deg);
+}
+.scv-photo img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.scv-photo .stamp-avatar-fallback,
+.scv-photo > div:not(.stamp-avatar-fallback):first-child { width: 100%; height: 100%; }
+.scv-photo-corner {
+  position: absolute; width: 14px; height: 14px; border-color: rgba(180, 150, 120, 0.55); border-style: solid; border-width: 0;
+}
+.scv-photo-corner.tl { top: 5px; left: 5px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 6px; }
+.scv-photo-corner.tr { top: 5px; right: 5px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 6px; }
+.scv-photo-corner.bl { bottom: 5px; left: 5px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 6px; }
+.scv-photo-corner.br { bottom: 5px; right: 5px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 6px; }
+.scv-stamp-corner {
+  position: absolute; top: 4px; right: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-size: 8.5px; font-weight: 700; color: #A8A08C;
+  border: 1px solid rgba(168, 160, 140, 0.55);
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.6);
+  transform: rotate(5deg);
+  letter-spacing: 0.08em;
+}
+.scv-stamp-date { font-size: 8px; font-weight: 600; opacity: .85; }
+.scv-postmark-ring {
+  position: absolute; left: 12px; top: 2px;
+  width: 64px; height: 64px;
+  border: 1.5px dashed rgba(168, 160, 140, 0.4);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 7.5px; letter-spacing: 0.18em; color: rgba(168, 160, 140, 0.75);
+  font-weight: 700;
+  transform: rotate(-12deg);
+}
+.scv-identity { text-align: center; margin-top: 14px; }
+.scv-name {
+  font-size: 21px; font-weight: 800; letter-spacing: 0.06em; color: #2E374A;
+}
+.scv-en {
+  font-size: 8.5px; letter-spacing: 0.22em; color: #B0A890; margin-top: 4px; font-weight: 600;
+}
+.scv-sign {
+  margin-top: 8px; font-size: 12px; color: #7A8496; font-style: italic; line-height: 1.6;
+}
+.scv-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 6px 12px;
+}
+.scv-divider::before, .scv-divider::after {
+  content: ''; flex: 1; border-top: 1.2px dashed rgba(150, 130, 100, 0.35);
+}
+.scv-divider-flower { font-size: 11px; color: #D8A8B8; line-height: 1; }
+.scv-info {
+  display: flex; flex-direction: column; gap: 7px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(150, 130, 110, 0.14);
+  border-radius: 14px;
+  padding: 13px 15px;
+}
+.scv-info .stamp-info-row {
+  display: flex; gap: 10px; align-items: baseline;
+  font-size: 12.5px; line-height: 1.55;
+}
+.scv-info .stamp-info-key {
+  flex: 0 0 58px; color: #A8A08C; font-weight: 600; letter-spacing: 0.05em; font-size: 11px;
+}
+.scv-info .stamp-info-val { flex: 1; min-width: 0; color: #3A4354; word-break: break-word; }
+.scv-info .stamp-info-val.stamp-pre {
+  white-space: pre-wrap; background: rgba(120, 110, 88, 0.06);
+  border-radius: 10px; padding: 8px 10px; font-size: 12px;
+}
+.scv-empty {
+  text-align: center; font-size: 12px; color: #B0A890; line-height: 1.8; padding: 6px 0;
+}
+.scv-footer {
+  text-align: center; font-size: 9.5px; letter-spacing: 0.14em;
+  color: #B8B09C; margin-top: 12px;
+}
+html[data-theme="midnight"] .stamp-card-v2 {
+  background: linear-gradient(168deg, #1C2432 0%, #1A222F 100%);
+  border-color: rgba(255,255,255,0.1);
+}
+html[data-theme="midnight"] .scv-name { color: #F1F5F9; }
+html[data-theme="midnight"] .scv-info { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
+html[data-theme="midnight"] .scv-info .stamp-info-val { color: #DBE3EE; }
+html[data-theme="midnight"] .scv-sign { color: #93A3B8; }
+
+/* ============ 旧版邮票卡（保留兼容） ============ */
 .stamp-card {
   position: relative;
   background: #FDFCF7;
@@ -3086,7 +3216,7 @@ textarea.field-input { line-height: 1.6; }
 }
 
 /* —— 线下文游页 —— */
-.offline-body { display: flex; flex-direction: column; background: linear-gradient(180deg, #FBF5F3 0%, var(--bg) 40%); }
+.offline-body { display: flex; flex-direction: column; background: linear-gradient(180deg, #F4F4F5 0%, var(--bg) 40%); }
 .of-scene-card {
   background: linear-gradient(135deg, #FFF7F4, #FDEFF3);
   border: 1px solid rgba(216, 150, 170, 0.22);
@@ -3108,25 +3238,105 @@ textarea.field-input { line-height: 1.6; }
   padding: 4px 2px 14px;
   display: flex; flex-direction: column; gap: 13px;
 }
-.of-turn { max-width: 92%; }
-.of-turn-me { align-self: flex-end; }
-.of-act {
-  display: inline-block;
-  background: linear-gradient(135deg, #E88AA5, #D8789A);
-  color: #fff; font-size: 13px; line-height: 1.6;
-  padding: 8px 14px; border-radius: 15px 15px 4px 15px;
-  box-shadow: 0 4px 10px -5px rgba(216, 120, 154, 0.5);
+
+/* —— 场景氛围横幅（线下文游顶部 · 黑白灰） —— */
+.of-scene-banner {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin: 2px auto 8px;
+  padding: 7px 18px;
+  border-radius: 3px;
+  background: #1D1D1F;
+  border: 1px solid #1D1D1F;
+  color: #F5F5F7; font-size: 11.5px; font-weight: 600; letter-spacing: .14em;
+  align-self: center;
+  box-shadow: 0 3px 10px -5px rgba(0,0,0,.4);
 }
-.of-turn-ai { align-self: flex-start; }
+.of-scene-banner .osb-ico { display: flex; color: #B8B8BC; }
+.of-scene-banner .osb-ico svg { width: 13px; height: 13px; }
+.of-scene-banner .osb-text { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* —— 用户行动气泡：带「你」徽标（墨色） —— */
+.of-act {
+  position: relative;
+  display: inline-block;
+  background: linear-gradient(135deg, #2E2E32, #1D1D1F);
+  color: #F5F5F7; font-size: 13px; line-height: 1.6;
+  padding: 9px 15px 9px 14px; border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 4px 10px -5px rgba(0, 0, 0, 0.5);
+}
+.of-act-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-right: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.22);
+  font-size: 9.5px; font-weight: 700; font-style: normal;
+  vertical-align: -3px;
+}
+
+/* —— AI 叙述：分层排版（Crimson Reverie 黑白灰杂志风） —— */
+.of-turn-ai { align-self: flex-start; max-width: 100%; }
+/* 旁白：纸页正文，左墨竖线 */
 .of-narr {
-  font-size: 13.5px; line-height: 1.85; color: var(--text);
-  background: var(--card-glass);
-  border: 1px solid rgba(216, 150, 170, 0.16);
-  border-radius: 4px 15px 15px 15px;
-  padding: 10px 14px; margin: 0 0 6px;
-  box-shadow: 0 3px 10px -6px rgba(150, 120, 130, 0.2);
+  font-size: 13.5px; line-height: 1.95; color: var(--text);
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(246,246,247,.9));
+  border: 1px solid rgba(60, 60, 64, 0.14);
+  border-left: 2.5px solid rgba(60, 60, 64, 0.45);
+  border-radius: 3px 16px 16px 3px;
+  padding: 12px 15px 12px 16px; margin: 0 0 8px;
+  box-shadow: 0 3px 12px -6px rgba(0, 0, 0, 0.15);
+  letter-spacing: .01em;
+  text-align: justify;
+}
+/* 说话内容：白卡高亮 + 墨色描边（引号包裹） */
+.of-narr .of-say {
+  display: inline-block;
+  background: #FFFFFF;
+  border: 1px solid rgba(40, 40, 44, 0.45);
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin: 3px 2px;
+  color: #1D1D1F;
+  font-weight: 700;
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.25);
+}
+/* "——"引导的有意义台词：墨色下划线强调 */
+.of-narr .of-dash-line {
+  text-decoration: underline;
+  text-decoration-color: rgba(40, 40, 44, 0.65);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  font-weight: 700;
 }
 .of-narr-empty { color: var(--text-3); font-size: 12.5px; }
+
+/* —— TA 的内心笔记盒：Selected Note 黑白杂志风 —— */
+.of-mind-card {
+  position: relative;
+  margin: 4px 0 8px 10px;
+  padding: 16px 15px 12px;
+  max-width: 92%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1.5px solid rgba(29, 29, 31, 0.7);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px -5px rgba(0, 0, 0, 0.3);
+  outline: 1px solid rgba(29, 29, 31, 0.15);
+  outline-offset: 3px;
+}
+.of-mind-card .om-tag {
+  position: absolute; top: -10px; left: 12px;
+  display: inline-block;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+  color: #fff; background: #1D1D1F;
+  border-radius: 3px; padding: 3px 10px;
+  box-shadow: 0 3px 8px -3px rgba(0, 0, 0, 0.5);
+}
+.of-mind-card p {
+  margin: 0; font-size: 12.5px; color: #48484C; line-height: 1.8;
+}
+html[data-theme="midnight"] .of-mind-card { background: rgba(24, 24, 27, 0.95); border-color: rgba(255,255,255,0.5); outline-color: rgba(255,255,255,0.15); }
+html[data-theme="midnight"] .of-mind-card p { color: #C8C8CC; }
+html[data-theme="midnight"] .of-narr .of-say { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.5); color: #F5F5F7; }
+html[data-theme="midnight"] .of-act { background: rgba(255,255,255,0.14); }
 .of-typing .of-narr { letter-spacing: .3em; color: var(--text-3); animation: ofPulse 1.1s ease-in-out infinite; }
 @keyframes ofPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
 
@@ -3137,18 +3347,18 @@ textarea.field-input { line-height: 1.6; }
 }
 .of-input {
   flex: 1; min-width: 0;
-  border: 1.5px solid rgba(232, 168, 190, 0.38);
+  border: 1.5px solid rgba(60, 60, 64, 0.35);
   border-radius: 22px; padding: 10px 16px;
   font-size: 14px; color: var(--text); background: #fff;
   outline: none;
   transition: border-color .2s ease, box-shadow .2s ease;
 }
-.of-input:focus { border-color: rgba(228, 130, 165, 0.75); box-shadow: 0 0 0 3px rgba(240, 178, 196, 0.2); }
+.of-input:focus { border-color: rgba(29, 29, 31, 0.8); box-shadow: 0 0 0 3px rgba(29, 29, 31, 0.12); }
 .of-send {
   width: 40px; height: 40px; border-radius: 50%; border: none; flex-shrink: 0;
-  background: linear-gradient(135deg, #E88AA5, #D8789A);
+  background: linear-gradient(135deg, #3A3A3E, #1D1D1F);
   color: #fff; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 10px -4px rgba(216, 120, 154, 0.55);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
 .of-send svg { width: 18px; height: 18px; }
@@ -3156,7 +3366,7 @@ html[data-theme="midnight"] .of-input { background: rgba(24, 32, 43, 0.92); }
 html[data-theme="midnight"] .of-scene-card { background: rgba(24, 32, 43, 0.8); }
 
 /* 线下模式：柔化场景卡（无固定地点） + 底部输入贴底 */
-.of-scene-soft { background: linear-gradient(135deg, rgba(255,247,244,.7), rgba(253,239,243,.5)); }
+.of-scene-soft { background: linear-gradient(135deg, rgba(248,248,249,.8), rgba(242,242,244,.6)); }
 .offline-body .of-input-wrap {
   position: sticky; bottom: 0;
   background: linear-gradient(180deg, rgba(251,245,243,0) 0%, var(--bg) 18%);
@@ -3290,8 +3500,8 @@ html[data-theme="midnight"] .of-opt-chip { background: rgba(24, 32, 43, 0.9); }
 /* 线下模式 ＋ 菜单 */
 .of-plus {
   width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-  border: 1.5px solid rgba(232, 168, 190, 0.5);
-  background: #fff; color: #C4698A;
+  border: 1.5px solid rgba(60, 60, 64, 0.5);
+  background: #fff; color: #1D1D1F;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
 }
