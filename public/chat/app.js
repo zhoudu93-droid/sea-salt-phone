@@ -777,8 +777,6 @@ function startApp() {
   $('#app').classList.remove('hidden');
   bindTabs();
   renderTab(S.tab);
-  // 主界面就绪 → 淡出首屏加载动画
-  if (window.__hideSplash) window.__hideSplash();
 }
 
 /* ---------------- 标签栏 ---------------- */
@@ -2223,6 +2221,16 @@ function renderThread(autoScroll = true) {
 }
 
 function bindChatEvents(body, p) {
+  // 线下纪念信封：点开查看当时的约会对话
+  body.querySelectorAll('[data-env-mid]').forEach(env => {
+    const mid = env.dataset.envMid;
+    const msg = (S.chats[p.id] || []).find(m => m.id === mid);
+    env.onclick = () => {
+      if (isSelectMode) return;
+      openOfflineMemoryViewer(p, msg || { sessionLog: [] });
+    };
+  });
+
   // 线下邀请小邮票：接受 → 进入线下模式；婉拒 → 留一句回应
   body.querySelectorAll('.of-invite-stamp').forEach(stamp => {
     const mid = stamp.closest('.msg')?.dataset.mid;
@@ -2612,7 +2620,7 @@ function msgHtml(m, p, isMe, opts = {}) {
     const footS = 'position:relative;font-size:9.5px;color:#b9a6ae;margin-top:10px;letter-spacing:.18em;';
     const stampS = 'position:absolute;top:8px;right:8px;width:30px;height:36px;border:1.5px dashed rgba(216,130,158,.5);border-radius:4px;font-size:9px;color:#D8829E;line-height:36px;';
     return `
-      <div style="${envS}">
+      <div style="${envS}cursor:pointer;" data-env-mid="${m.id}">
         <div style="${flapS}"></div>
         <div style="position:relative;padding:20px 18px 14px;">
           <div style="${heartS}">♡</div>
@@ -5250,19 +5258,54 @@ function endOfflineDate(p, backToChat) {
   const st = offlineStateOf(p);
   const hadLog = st.active && st.log.length;
   const sceneName = st.sceneName;
-  const turns = st.log.length;
+  // 段数 = 用户实际行动的次数
+  const turns = st.log.filter(t => t.role === 'user' && !t.silent).length;
+  const sessionLog = st.log.filter(t => !t.silent).map(t => ({ role: t.role, text: t.text }));
   st.active = false;
-  st.log = []; // 剧情已完结即清空；「可续」由下次开新约实现
+  st.log = [];
   savePersonas(); persist();
   if (hadLog) {
     pushMsg(p.id, {
       id: 'm_' + uid(), role: 'them', type: 'offline_memory', time: Date.now(),
-      sceneName, turns, personaName: displayOf(p).name
+      sceneName, turns, personaName: displayOf(p).name, sessionLog
     });
     renderTab('chat');
   }
-  toast('约会结束了，纪念卡已放进聊天 ♡');
+  toast('约会结束了，纪念信封已放进聊天 ♡');
   backToChat && backToChat();
+}
+
+
+/* 查看线下约会的对话记录（点纪念信封） */
+function openOfflineMemoryViewer(p, msg) {
+  const log = msg.sessionLog || [];
+  openSubpage({
+    title: `线下 · ${displayOf(p).name}`,
+    onBack: () => closeSubpage(),
+    bodyCls: 'offline-body',
+    bodyHtml: `
+      <div style="font-size:11.5px;color:var(--text-4);text-align:center;margin-bottom:10px;">
+        ${new Date(msg.time || Date.now()).toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · 共 ${msg.turns || 0} 段时光
+      </div>
+      <div id="of-log" class="of-log"></div>
+      <div style="height:calc(16px + var(--safe-b));"></div>
+    `,
+    onMount() {
+      const logEl = $('#of-log');
+      logEl.innerHTML = log.map(turn => {
+        if (turn.role === 'user') {
+          return `<div class="of-turn of-turn-me"><span class="of-act">${esc(turn.text)}</span></div>`;
+        }
+        const paras = (turn.text || '').split(/\n+/).filter(Boolean);
+        return `<div class="of-turn of-turn-ai">${paras.map(t => {
+          const mMind = t.match(/^【内心】\s*(.+)$/);
+          if (mMind) return `<p class="of-mind">「${esc(mMind[1])}」</p>`;
+          return `<p class="of-narr">${esc(t)}</p>`;
+        }).join('')}</div>`;
+      }).join('') || '<p class="of-narr of-narr-empty">这次约会没有留下对话记录</p>';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  });
 }
 
 /* —— 入口二：人设主动发的「线下邀请小邮票」—— */
