@@ -1076,6 +1076,15 @@ function displayOf(p) {
    二、通讯录
    ================================================================ */
 function renderContacts(host) {
+  // 人设馆实时同步：进入通讯录时从磁盘重读人设（人设馆直接写localStorage，绕过内存会互相覆盖）
+  if (S.curUid) {
+    const fresh = load(accK(S.curUid, 'personas'), null);
+    if (Array.isArray(fresh)) {
+      S.personas = fresh;
+      // 人设馆新增的人设如果还没有聊天会话，补一个空会话避免历史兼容问题
+      fresh.forEach(p => { if (!S.chats[p.id]) S.chats[p.id] = []; });
+    }
+  }
   const list = S.personas;
   let html = `<div class="searchbar">
       <div class="searchbar-in"><svg><use href="#i-search"></use></svg><input id="ct-wxid-search" class="wxid-search-input" placeholder="输入微信号找人…" maxlength="24" autocomplete="off"></div>
@@ -3312,8 +3321,14 @@ async function reply(pid, regenHint) {
   }
 
   // 依次弹出真实回复短气泡与表情包
+  // 兜底修复：候选行必须剔除心声/表情/线下/转账/换头像等指令标签行，防止把标签原文当正文推出后被渲染层过滤导致"回复不显示"
   if (!msgItems.length && lines.length) {
-    msgItems.push({ type: 'text', text: lines[lines.length - 1] });
+    const isCmdLine = (l) => /^\s*\[(心声|表情|表情包|线下邀请|收款|收下|确认收款|退回|退还|拒收|退钱|换头像|更换头像)[:：\]]/.test(l);
+    const contentLines = lines.filter(l => !isCmdLine(l));
+    if (contentLines.length) {
+      msgItems.push({ type: 'text', text: contentLines[contentLines.length - 1] });
+    }
+    // 整条回复只有指令标签（如仅心声）时不推气泡：心声卡片本身就是这次的回复
   }
 
   msgItems.forEach((item, i) => {
