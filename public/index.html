@@ -141,8 +141,7 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
-      height: 100dvh;
+      height: 100vh; /* iOS26 PWA白边修复：外层统一100vh，不混用100%/100dvh */
       background: var(--sea-bg);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       color: var(--text-main);
@@ -168,9 +167,8 @@
     .phone-container {
       width: 100%;
       max-width: 100%;
-      height: 100%;
-      height: 100dvh;
-      max-height: 100dvh;
+      height: 100vh; /* iOS26 PWA白边修复：统一100vh */
+      max-height: 100vh;
       background: var(--sea-gradient);
       position: relative;
       overflow: hidden;
