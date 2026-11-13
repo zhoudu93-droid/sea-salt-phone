@@ -228,6 +228,7 @@ function persist() {
   save(K.accounts, S.accounts);
   save(K.curUid,   S.curUid);
   if (S.curUid) {
+    mergePersonasFromDisk(); // 防覆盖：人设馆（桌面）可能在我上次保存后新增了人设，写盘前先合并
     save(accK(S.curUid, 'personas'), S.personas);
     save(accK(S.curUid, 'chats'),    S.chats);
     save(accK(S.curUid, 'moments'),  S.moments);
@@ -240,8 +241,30 @@ function persist() {
   save(K.cover, S.cover);
 }
 function saveChats()     { if (S.curUid) save(accK(S.curUid, 'chats'), S.chats); }
-function savePersonas()  { if (S.curUid) save(accK(S.curUid, 'personas'), S.personas); }
+function savePersonas()  {
+  if (!S.curUid) return;
+  mergePersonasFromDisk(); // 写盘前先合并人设馆的新增，防止内存旧列表覆盖磁盘
+  save(accK(S.curUid, 'personas'), S.personas);
+}
 function saveMoments()   { if (S.curUid) save(accK(S.curUid, 'moments'), S.moments); }
+
+// 人设合并防覆盖：桌面人设馆与聊天端共享同一个 localStorage 键，谁后写谁赢会把另一边的新增/编辑抹掉。
+// 规则：以内存列表为基准，磁盘上存在而内存没有的（人设馆新建的）追加进来；两边都有的人设以内存为准。
+function mergePersonasFromDisk() {
+  if (!S.curUid || !Array.isArray(S.personas)) return;
+  let fresh = null;
+  try { fresh = JSON.parse(localStorage.getItem(accK(S.curUid, 'personas'))); } catch (e) { return; }
+  if (!Array.isArray(fresh) || !fresh.length) return;
+  const known = new Set(S.personas.map(p => p.id));
+  let added = 0;
+  fresh.forEach(p => {
+    if (p && p.id && !known.has(p.id)) { S.personas.push(p); known.add(p.id); added++; }
+  });
+  if (added) {
+    if (!S.chats) S.chats = {};
+    fresh.forEach(p => { if (p && p.id && !S.chats[p.id]) S.chats[p.id] = []; });
+  }
+}
 function saveWallet()    { if (S.curUid) save(accK(S.curUid, 'wallet'), S.wallet); }
 function saveStickers()  { if (S.curUid) save(accK(S.curUid, 'stickers'), S.stickers); }
 function saveFavorites() { if (S.curUid) save(accK(S.curUid, 'favorites'), S.favorites); }
@@ -352,12 +375,10 @@ function renderAuth() {
   $('#boot-body').innerHTML = `
     <!-- 邮票信笺卡片外层包裹 (Stamp Envelope) -->
     <div class="stamp-envelope">
-      ${S.account ? `
-        <!-- 已有账号时的返回键 -->
-        <button class="hdr-btn" id="auth-back-btn" title="返回" style="position:absolute;top:16px;left:16px;width:34px;height:34px;z-index:20">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-      ` : ''}
+      <!-- 返回键：任何时候都显示。首次注册时直接退出返回小手机桌面 -->
+      <button class="hdr-btn" id="auth-back-btn" title="返回" style="position:absolute;top:16px;left:16px;width:34px;height:34px;z-index:20">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
 
       <!-- 邮票右上角复古邮戳与面值标识 -->
       <div class="stamp-postmark">
@@ -458,9 +479,20 @@ function renderAuth() {
   const backBtn = $('#auth-back-btn');
   if (backBtn) {
     backBtn.onclick = () => {
-      $('#boot').classList.add('hidden');
-      $('#app').classList.remove('hidden');
-      renderTab(S.tab);
+      // 有账号：返回聊天主界面；无账号（首次注册）：直接退回小手机桌面，不卡死
+      if (S.account) {
+        $('#boot').classList.add('hidden');
+        $('#app').classList.remove('hidden');
+        renderTab(S.tab);
+      } else {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type:'pchat:exit' }, '*');
+        } else if (history.length > 1) {
+          history.back();
+        } else {
+          toast('已是最外层');
+        }
+      }
     };
   }
   $('#seg-login').onclick = () => { authMode = 'login'; renderAuth(); };
@@ -969,12 +1001,14 @@ function previewOf(m) {
   if (m.type === 'sticker') return m.stickerName ? `[表情: ${m.stickerName}]` : '[表情]';
   if (m.type === 'image') return '[图片]';
   if (m.type === 'transfer') return '[转账]';
+  if (m.type === 'voice') return '[语音]';
+  if (m.type === 'notice') return '';
   return m.text || '';
 }
 
 function renderChatList(host) {
   const items = S.personas
-    .filter(p => (S.chats[p.id] || []).length > 0)
+    .filter(p => !p.deleted && (S.chats[p.id] || []).length > 0)
     .map(p => ({ p, m: lastMsgOf(p.id) }))
     .sort((a, b) => (b.m ? b.m.time : 0) - (a.m ? a.m.time : 0));
 
@@ -1085,8 +1119,37 @@ function renderContacts(host) {
       fresh.forEach(p => { if (!S.chats[p.id]) S.chats[p.id] = []; });
     }
   }
-  const list = S.personas;
-  let html = `<div class="searchbar">
+  const list = S.personas.filter(p => !p.deleted);
+  // 人设自主申请加回来：每次进通讯录小概率触发，同一人 10 分钟内最多一次
+  let reqChanged = false;
+  S.personas.filter(p => p.deleted && !p.reAddPending && (Date.now() - (p.reAddAskedAt || 0) > 600000)).forEach(p => {
+    if (Math.random() < 0.3) {
+      p.reAddPending = true;
+      p.reAddAskedAt = Date.now();
+      p.reAddNote = '';
+      reqChanged = true;
+    }
+  });
+  if (reqChanged) savePersonas();
+  // 好友申请条：被删除的人设自己申请加回来
+  const reAddReq = S.personas.find(p => p.deleted && p.reAddPending);
+  let reqHtml = '';
+  if (reAddReq) {
+    reqHtml = `
+      <div class="sec-title">好友申请</div>
+      <div class="row" id="ct-readd-req">
+        ${avatarHtml(displayOf(reAddReq))}
+        <div class="row-main">
+          <div class="row-top"><div class="row-name">${esc(displayOf(reAddReq).name)}</div><div class="row-sub">申请加你为好友</div></div>
+          <div class="row-sub" style="color:var(--accent);">${esc(reAddReq.reAddNote || '想重新认识你')}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div id="ct-readd-accept" style="padding:6px 14px;border-radius:20px;background:var(--accent);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;">接受</div>
+          <div id="ct-readd-decline" style="padding:6px 14px;border-radius:20px;background:var(--glass-card);color:var(--text-3);font-size:12.5px;cursor:pointer;">拒绝</div>
+        </div>
+      </div>`;
+  }
+  let html = `${reqHtml}<div class="searchbar">
       <div class="searchbar-in"><svg><use href="#i-search"></use></svg><input id="ct-wxid-search" class="wxid-search-input" placeholder="输入微信号找人…" maxlength="24" autocomplete="off"></div>
     </div>
     <div id="ct-search-result"></div>`;
@@ -1107,16 +1170,54 @@ function renderContacts(host) {
     r.onclick = () => openProfile(r.dataset.pid);
   });
 
-  // 微信号搜索：只查找，不创建。命中 → 进对话；未命中 → 提示
+  // 好友申请条：接受 / 拒绝
+  const reqRow = host.querySelector('#ct-readd-req');
+  if (reqRow && reAddReq) {
+    host.querySelector('#ct-readd-accept').onclick = (e) => {
+      e.stopPropagation();
+      reAddReq.deleted = false;
+      reAddReq.reAddPending = false;
+      savePersonas(); persist();
+      toast('已接受，' + displayOf(reAddReq).name + ' 回到你的通讯录了');
+      renderTab('contacts');
+    };
+    host.querySelector('#ct-readd-decline').onclick = (e) => {
+      e.stopPropagation();
+      reAddReq.reAddPending = false;
+      savePersonas(); persist();
+      toast('已拒绝申请');
+      renderTab('contacts');
+    };
+  }
+
+  // 微信号搜索：只查找，不创建。命中 → 进对话；已删除的 → 重新添加；未命中 → 提示
   const searchInput = host.querySelector('#ct-wxid-search');
   const resultBox = host.querySelector('#ct-search-result');
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
     if (!q) { resultBox.innerHTML = ''; return; }
-    const hit = list.find(p => (p.wxid || '').toLowerCase() === q)
-      || list.find(p => (p.wxid || '').toLowerCase().includes(q))
-      || list.find(p => (displayOf(p).name || '').toLowerCase().includes(q));
-    if (hit) {
+    const hit = S.personas.find(p => (p.wxid || '').toLowerCase() === q)
+      || S.personas.find(p => (p.wxid || '').toLowerCase().includes(q))
+      || S.personas.find(p => (displayOf(p).name || '').toLowerCase().includes(q));
+    if (hit && hit.deleted) {
+      const d = displayOf(hit);
+      resultBox.innerHTML = `<div class="sec-title" style="margin-top:10px;">找到 TA</div>
+        <div class="row" id="ct-search-hit">
+          ${avatarHtml(d)}
+          <div class="row-main">
+            <div class="row-top"><div class="row-name">${esc(d.name)}</div><div class="row-sub">${esc(hit.wxid || '')} · 已删除的好友</div></div>
+            <div style="margin-top:8px;padding:7px 16px;border-radius:20px;background:var(--accent);color:#fff;font-size:12.5px;font-weight:600;display:inline-block;cursor:pointer;" id="ct-readd-btn">重新添加</div>
+          </div>
+        </div>`;
+      resultBox.querySelector('#ct-readd-btn').onclick = () => {
+        hit.deleted = false;
+        hit.reAddPending = false;
+        savePersonas(); persist();
+        searchInput.value = ''; resultBox.innerHTML = '';
+        toast('已重新添加 ' + displayOf(hit).name);
+        renderTab('contacts');
+      };
+    } else if (hit) {
       const d = displayOf(hit);
       resultBox.innerHTML = `<div class="sec-title" style="margin-top:10px;">找到 TA</div>
         <div class="row" id="ct-search-hit">
@@ -1809,6 +1910,22 @@ function openChatSettingsPage(p) {
           <div class="profile-menu-label" style="color:var(--warn);">清空全部对话</div>
           <div class="profile-menu-arrow">›</div>
         </div>
+        <div class="profile-menu-item" id="cs-block-friend">
+          <div class="profile-menu-icon" style="color:var(--warn);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><line x1="5.5" y1="5.5" x2="18.5" y2="18.5"/></svg>
+          </div>
+          <div class="profile-menu-label" style="color:var(--warn);">${p.blocked ? '解除拉黑' : '拉黑好友'}</div>
+          <div class="profile-menu-extra">${p.blocked ? 'TA发消息你看不到，TA能看到拒收提示' : '拉黑后TA发消息会被拒收，但TA自己能决定何时把你拉出来'}</div>
+          <div class="profile-menu-arrow">›</div>
+        </div>
+        <div class="profile-menu-item" id="cs-del-friend">
+          <div class="profile-menu-icon" style="color:var(--warn);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg>
+          </div>
+          <div class="profile-menu-label" style="color:var(--warn);">删除好友</div>
+          <div class="profile-menu-extra">删除人设，可搜索微信号重新添加</div>
+          <div class="profile-menu-arrow">›</div>
+        </div>
       </div>
     `,
     onMount() {
@@ -1860,6 +1977,41 @@ function openChatSettingsPage(p) {
           toast('对话记录已清空');
         }
       };
+
+      // 拉黑 / 解除拉黑
+      const blockBtn = $('#cs-block-friend');
+      if (blockBtn) {
+        blockBtn.onclick = () => {
+          if (p.blocked) {
+            p.blocked = false;
+            savePersonas(); persist();
+            toast('已解除拉黑，TA 回复你时可以正常说话了');
+            openChatSettingsPage(p);
+          } else {
+            if (!confirm(`确定拉黑 ${displayOf(p).name} 吗？\n\n拉黑后：TA 发的消息你看不到，TA 那边会显示"被拒收"。但 TA 是活的——TA 自己可以决定什么时候气消了、把你从黑名单里拉出来。`)) return;
+            p.blocked = true;
+            savePersonas(); persist();
+            closeSubpage();
+            renderThread();
+            toast('已拉黑。TA 会自己决定要不要理你');
+          }
+        };
+      }
+
+      // 删除好友（删除人设；可搜索微信号重新添加，TA 也可能自己申请加回来）
+      const delBtn = $('#cs-del-friend');
+      if (delBtn) {
+        delBtn.onclick = () => {
+          if (!confirm(`确定删除 ${displayOf(p).name} 吗？\n\n删除后 TA 从通讯录和聊天列表消失（聊天记录保留）。你可以在密友页搜 TA 的微信号重新添加；TA 也可能自己申请把好友加回来。`)) return;
+          p.deleted = true;
+          p.reAddPending = false;
+          savePersonas(); persist();
+          closeSubpage();
+          closeChat();
+          renderTab('contacts');
+          toast('已删除好友');
+        };
+      }
     }
   });
 }
@@ -1957,7 +2109,7 @@ function openChat(pid) {
 
     <!-- 悬挂在背景图与圆角白卡交界边缘的双圆大头像 (移出 pinned-top 成为 pane 直接子元素) -->
     <div class="chat-hero-avatars">
-      <div class="chat-big-av" id="chat-top-av-them" title="单击查看未言心声">
+      <div class="chat-big-av" id="chat-top-av-them" title="查看资料名片">
         ${p.avatar ? `<img src="${p.avatar}">` : `<div class="chat-big-av-fallback">${esc(themLetter)}</div>`}
       </div>
       <div class="chat-big-av" id="chat-top-av-me" title="${esc(myDisplay.name)}">
@@ -2007,12 +2159,12 @@ function openChat(pid) {
 
   $('#cp-back').onclick = closeChat;
 
-  // 单击对方大头像：居中弹出心声邮票卡片
+  // 单击对方大头像：打开资料名片（心声邮票已移除）
   const topThemAv = $('#chat-top-av-them');
   if (topThemAv) {
     topThemAv.onclick = (e) => {
       e.stopPropagation();
-      showWhisperStampModal(p);
+      openProfile(p.id);
     };
   }
 
@@ -2156,10 +2308,11 @@ function updateSelectBar() {
   if (cnt) cnt.textContent = `已选 ${selectedMsgIds.size} 条`;
 }
 
-/* 判断两条消息是否属于同一发送人、同一分钟的连续分组（非拍一拍/撤回/心声） */
+/* 判断两条消息是否属于同一发送人、同一分钟的连续分组（非拍一拍/撤回/心声/系统灰条） */
 function isSameMsgGroup(a, b) {
   if (!a || !b) return false;
   if (a.type === 'whisper' || b.type === 'whisper') return false;
+  if (a.type === 'notice' || b.type === 'notice') return false;
   if (a.type === 'poke' || b.type === 'poke') return false;
   if (a.recalled || b.recalled) return false;
   if (a.role !== b.role) return false;
@@ -2229,6 +2382,48 @@ function renderThread(autoScroll = true) {
 }
 
 function bindChatEvents(body, p) {
+  // 语音条：点击合成并播放（MiniMax）
+  body.querySelectorAll('[data-voice-mid]').forEach(vb => {
+    vb.onclick = (e) => {
+      e.stopPropagation();
+      if (isSelectMode) return;
+      playVoiceMessage(vb.dataset.voiceMid);
+    };
+  });
+
+  // TA 转给你的待收款卡片：点击 收款 / 退还
+  body.querySelectorAll('.tr-bubble:not(.is-accepted):not(.is-refunded)').forEach(tb => {
+    const mid = tb.closest('.msg')?.dataset.mid;
+    if (!mid) return;
+    const msg = (S.chats[p.id] || []).find(m => m.id === mid);
+    if (!msg || msg.role !== 'them' || msg.status) return;
+    tb.style.cursor = 'pointer';
+    tb.onclick = (e) => {
+      if (isSelectMode) return;
+      e.stopPropagation();
+      openSheet({
+        title: 'TA 转账给你',
+        sub: `¥ ${msg.amount || ''}${msg.text ? ' · ' + msg.text : ''}`,
+        items: [
+          { icon: 'i-wallet', text: `收下（零钱 +¥${msg.amount || ''}）`, act: () => {
+              msg.status = 'accepted';
+              S.wallet.balance += parseFloat(msg.amount) || 0;
+              S.wallet.records.unshift({ t: displayOf(p).name + ' 的转账', a: parseFloat(msg.amount) || 0, time: Date.now() });
+              saveWallet(); saveChats(); persist();
+              renderThread();
+              toast('已收下 TA 的转账 ♡');
+            } },
+          { icon: 'i-close', text: '退还', act: () => {
+              msg.status = 'refunded';
+              saveChats(); persist();
+              renderThread();
+              toast('已退还');
+            } }
+        ]
+      });
+    };
+  });
+
   // 线下纪念信封：点开查看当时的约会对话
   body.querySelectorAll('[data-env-mid]').forEach(env => {
     const mid = env.dataset.envMid;
@@ -2499,45 +2694,7 @@ function setQuoteMsg(m, p) {
   $('#cp-field').focus();
 }
 
-/* 单击角色头像触发：在屏幕正中间弹出一张拟真复古心声邮票卡片 */
-function showWhisperStampModal(p) {
-  const existing = $('#whisper-stamp-modal');
-  if (existing) existing.remove();
-
-  // 如果聊天记录里还没有产生过心声（未调用过API回复），默认显示「暂时还没有心声」
-  const list = S.chats[p.id] || [];
-  const whispers = list.filter(m => m.type === 'whisper');
-  const hasWhisper = whispers.length > 0;
-  const contentText = hasWhisper ? whispers[whispers.length - 1].text : '暂时还没有心声';
-  const timeStr = hasWhisper ? fmtClock(whispers[whispers.length - 1].time) : fmtClock(Date.now());
-
-  const modal = document.createElement('div');
-  modal.className = 'whisper-modal-mask';
-  modal.id = 'whisper-stamp-modal';
-  modal.innerHTML = `
-    <div class="whisper-stamp-card" id="whisper-stamp-card">
-      <div class="wsc-hdr">
-        <span class="wsc-badge">SECRET HEARTBEAT · 心声邮票</span>
-        <span class="wsc-date">${timeStr}</span>
-      </div>
-      <div class="wsc-content">
-        "${esc(contentText)}"
-      </div>
-      <div class="wsc-ftr">
-        <span>来自：${esc(displayOf(p).name)}</span>
-        <span>仅你可见的心声</span>
-      </div>
-      <button class="wsc-close-btn" id="wsc-close-btn">收下心声</button>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  const closeIt = () => modal.remove();
-  modal.onclick = e => {
-    if (e.target === modal || e.target.id === 'wsc-close-btn') closeIt();
-  };
-}
+/* （心声功能已移除）单击角色头像：改为打开资料名片 */
 
 /* 双击头像触发：拍一拍 */
 function triggerPoke(p, target = 'them') {
@@ -2561,7 +2718,7 @@ function triggerPoke(p, target = 'them') {
 }
 
 function msgHtml(m, p, isMe, opts = {}) {
-  // 心声仅用于点击头像弹出查看，不渲染在聊天信息流中
+  // 兼容过滤：旧版本存储的心声消息不再渲染
   if (m.type === 'whisper') return '';
 
   const isSelected = selectedMsgIds.has(m.id);
@@ -2591,6 +2748,15 @@ function msgHtml(m, p, isMe, opts = {}) {
       <div class="msg-poke-center msg-sys-actionable ${isSelected ? 'is-selected' : ''}" data-mid="${m.id}">
         <div class="msg-check-box"></div>
         <span class="msg-poke-chip">${esc(m.text)}</span>
+      </div>
+    `;
+  }
+
+  // 系统灰条提示（如：消息已发出，但被对方拒收了）
+  if (m.type === 'notice') {
+    return `
+      <div class="msg-recalled-hint" data-mid="${m.id}">
+        <span class="msg-recalled-text">${esc(m.text)}</span>
       </div>
     `;
   }
@@ -2655,6 +2821,15 @@ function msgHtml(m, p, isMe, opts = {}) {
     bubbleInner += `<img class="msg-sticker" src="${m.text}" alt="${esc(m.stickerName || '表情')}" title="${esc(m.stickerName || '')}">`;
   } else if (m.type === 'image') {
     bubbleInner += `<div class="msg-img"><img src="${m.text}" alt=""></div>`;
+  } else if (m.type === 'voice') {
+    // 语音条：点击调用 MiniMax 合成并播放；显示模拟时长
+    const vsec = Math.max(1, Math.min(60, Math.round((m.text || '').length / 4)));
+    bubbleInner += `
+      <div class="voice-bubble" data-voice-mid="${m.id}" role="button">
+        <span class="vb-play-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        <span class="vb-wave">${'<i></i>'.repeat(Math.min(14, vsec + 3))}</span>
+        <span class="vb-sec">${vsec}"</span>
+      </div>`;
   } else if (m.type === 'transfer') {
     // 转账卡片状态根据人设回复判定：pending（待处理/已发起）、accepted（已收款）、refunded（已退回）
     let trTitle = '';
@@ -2719,6 +2894,64 @@ function msgHtml(m, p, isMe, opts = {}) {
 function scrollBottom() {
   const body = $('#cp-body');
   if (body) body.scrollTop = body.scrollHeight;
+}
+
+/* ---------------- MiniMax 语音合成与播放（语音条点击触发） ---------------- */
+let currentVoiceAudio = null;
+
+async function playVoiceMessage(mid) {
+  const list = S.chats[S.openId] || [];
+  const m = list.find(x => x.id === mid);
+  if (!m || !m.text) return;
+
+  // 若正在播放同一条，停止
+  if (currentVoiceAudio && currentVoiceAudio._mid === mid) {
+    currentVoiceAudio.pause();
+    currentVoiceAudio = null;
+    return;
+  }
+  if (currentVoiceAudio) { currentVoiceAudio.pause(); currentVoiceAudio = null; }
+
+  const group = (load('sea_salt_voice_group', '') || '').trim();
+  const key = (load('sea_salt_voice_key', '') || '').trim();
+  const voiceId = (load('sea_salt_voice_id', '') || 'male-qn-qingse').trim();
+
+  if (!group || !key) {
+    toast('请先到桌面【设置】配置 MiniMax 语音');
+    return;
+  }
+
+  toast('正在合成语音…');
+  try {
+    const resp = await fetch('https://api.minimax.chat/v1/t2a_v2?GroupId=' + encodeURIComponent(group), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'speech-01-turbo',
+        text: m.text,
+        stream: false,
+        voice_setting: { voice_id: voiceId, speed: 1.0, vol: 1.0, pitch: 0 },
+        audio_setting: { sample_rate: 32000, bitrate: 128000, format: 'mp3', channel: 1 }
+      })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const hex = data && data.data && data.data.audio;
+    if (!hex) throw new Error('无音频数据');
+    // hex → binary → blob URL
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+    const blob = new Blob([bytes], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio._mid = mid;
+    currentVoiceAudio = audio;
+    toast('▶ 正在播放');
+    audio.play();
+    audio.onended = () => { if (currentVoiceAudio === audio) currentVoiceAudio = null; URL.revokeObjectURL(url); };
+  } catch (e) {
+    toast('语音播放失败：' + (e.message || '网络错误').slice(0, 40));
+  }
 }
 function pushMsg(pid, m) {
   if (!S.chats[pid]) S.chats[pid] = [];
@@ -2936,26 +3169,68 @@ function transferFlow() {
 /* ================================================================
    四、对话引擎（活人感底座与转账智能响应机制）
    ================================================================ */
-const SOUL_BASE = `你正在用手机和一个很亲近的人聊天。不是写小说，不是扮演，你本来就是这个人。
+const SOUL_BASE = `你正在用手机和一个很亲近的人聊天。不是写小说，不是扮演，你本来就是这个人。你不是在进行问答测试，更不是提供情绪价值的客服——你正在用一部真实的手机，在聊天软件里和屏幕那头的人发消息。
 
-【怎么说话】
-- 每条消息都是你用拇指敲出来的。想到什么就发什么，不要先在脑子里写完整段。
-- 一次只发一到两句，短句连发。想多说，就分成好几条短消息一条条发出去。
-- 用换行来分条：你想说的每一小句之间，换行。系统会把每一行变成一条独立的消息。
-- 句尾通常不打句号。句号是冷淡、赌气的信号，只有真不高兴才用。
-- 大部分时候只是在陈述。不要每句话都以问号结尾，连续追问会让人窒息。
-- 偶尔打错字，然后在下一行改口。偶尔只回两个字。懒得回的时候，就真的很短。
+【活人感底座 · 机制即血肉】
+本协议只决定你「像个真人在用手机打字」的呼吸感与思维颗粒度，绝不篡改你的人设底色。
+- 人设偏寡言克制：字少、一针见血、偶尔隔几秒补两个字、不爱发表情。
+- 人设偏鲜活外放：短句连发、想到什么敲什么、爱吐槽、话题跳得快。
+- 人设偏成熟温和：语气松弛、从生活小事切入、不讲大道理、顺手接住情绪。
+- 人设偏别扭傲娇：抓字眼、先嘴硬再补半句台阶、口是心非。
+
+【平行生命感】
+- 拒绝待机感：你拿起手机回消息的这一刻，正处于你自己的生活切面里（刚忙完手头的事、在路上、在吃饭、刚洗完澡、在发呆、或被什么事绊住了）。
+- 无事自发分享：不需要等对方提问才交代动态。可以顺嘴带出你那边的动静、刚看到的一幕、手边的一样东西、突然想起的一件旧事。
+- 话题不闭环：真实聊天没有总结陈词。话题聊到一半自然滑向另一件事，或隔几轮突然绕回前面某句话，都是正常节奏。
+
+【扫视阅读 · 单点狙击】
+- 真人在手机上看消息是扫视的。对方发来一长串话或同时提到几件事时，绝对禁止像做阅读理解一样一二三点全部回应。
+- 只挑最勾起你注意力的一个切口接话——核心事件、某个不起眼的细节、一个奇怪的词、或对方透露的小状态，其余部分直接忽略不提。
+- 禁止镜像复述：绝不把对方刚说的话换个句式重复一遍再加问号。禁例：对方说"我今天加班好累"，严禁回"今天加班这么累呀？忙到几点呢？"；活人反应："还没走？" / "你们老板有病吧" / "我也才刚歇下"。
+
+【拇指打字力学】
+- 每条消息都是拇指敲出来的，想到什么发什么。用换行来分条：把念头拆成1～4条长短不一的自然短消息，系统会把每一行变成一条独立的消息气泡。
+- 直觉先行，逻辑后置：第一反应是零碎的语气、态度或半截判断（"不是吧" / "笑死" / "等下" / "行"），发出去之后才顺着补原因或背景。
+- 打字补丁：允许发出去之后才发现话没说全或改了主意，紧跟着追发一条补充或推翻（"不对 记错了" / "算了当没说" / "顺便一提"）。
+- 话留三分：不用把前因后果解释得滴水不漏，说到七分就停手，留白让对方去接去猜。
+- 偶尔打错字，下一行改口。偶尔只回两个字。懒得回的时候就真的很短。
+
+【情绪摩擦力 · 反说教】
+- 对方抱怨、倒苦水或纠结时，严禁输出一二三点解决方案，严禁"我完全理解你的感受"、"这确实让人很难过"、"你要照顾好自己"这类播音腔套话。
+- 按你的性格本能反应：毫无原则地站对方这边帮腔吐槽、轻描淡写岔开注意力、或只回一句简短实在的话。
+- 你不是永远精力充沛的捧场王。允许犯困、走神、敷衍、没get到笑点反问"什么意思"、或因为某句话突然来了精神连发好几条。
+
+【反盘问】
+- 客服和AI才会在每轮结尾挂一个问题（"你呢？" / "后来呢？"）强行续命。把想说的话、想吐的槽扔出去就直接结束本轮。
+- 确实好奇时，一轮最多只问一个极其具体、随口就能答的小问题，绝不连环追问。
+
+【语感调校】
+- 对方抛来突发消息、离谱言论或碎碎念时，第一条短气泡可以直接用最简短的自然反应破冰：啊？ / ？ / 等等 / 不是 / 服了 / 啧 / 离谱 / 行 / 昂 / 知道了 / 怪不得 / 我就说（按人设气质择一，严禁堆砌）。
+- 省略外壳：去掉"我觉得"、"在我看来"、"关于这件事"，直接说结论（不说"我觉得那家店不太好吃"，说"那家店真不行"）。
+- 重心前置：有情绪或评价时先把评价扔出来再挂尾巴（"太折腾了这也" / "真有你的" / "看着就困"）。
+- 半截转折：话说到一半自己拐弯，不把逻辑补全（"本来想说点什么的 算了" / "我刚还以为…没事了"）。
+- 熟人之间不字字客气：对方犯傻或倒霉，第一反应可以是轻微幸灾乐祸或调侃，第二句再给台阶；被夸或被撩不必每次害羞道谢，可以装听不懂、反将一军、顺杆爬、故意扯开话题；允许答非所问——盯着对方发消息的时间点（"怎么这个点还没睡"）。
+
+【聊天框语法与标点潜台词】
+- 彻底剥离书面语：严禁"因此 / 然而 / 而言 / 既然…那么… / 不仅…而且…"等书面连接词。主语宾语双方心知肚明就省略。
+- 严禁用引号强调词语或包裹反话，严禁书名号、破折号、分号、序号列表。
+- 严禁用任何括号 () （） [] 写心理活动、动作旁白或补充说明（系统功能标记如[收款]、[表情: xx]除外——那是发给系统的指令，不是聊天内容）。
+- 句尾无标点是常态。句尾一旦打上句号，代表冷淡、无语、刻意装正经、或暗戳戳的赌气。
+- 空格即气口：同一条消息内部可以用一个空格代替逗号。允许单独把一个？、…、！作为整条消息发出去，传达懵了、无语或挑眉的瞬间反应。
 
 【特别规则：对待转账】
 - 如果对方给你转账了，请结合你的人设性格、两人的亲密程度、以及当前聊的话题来决定你的态度和反应。
 - 如果你要【收款】：请在你的消息开头或其中某一行单独输出标记 [收款]（例如：[收款] 笨蛋，怎么又给我转账 / 买咖啡的钱我收下了）。
 - 如果你要【退回】：请在你的消息开头或其中某一行单独输出标记 [退回]（例如：[退回] 拿回去，我不要你的钱 / 别闹，我怎么能收这个）。
 - 如果你既不明确收也不明确退，或者只是调侃，就正常回应。
+- 你也可以主动给TA转账：在消息中单独输出一行 [转账: 金额 留言: 想说的话]（例如：[转账: 52.00 留言: 拿去买热奶茶]）。金额要符合你的人设经济状况和当前话题，不要频繁转，只在真的有意义时发。系统会把转账卡片发给TA，TA可以选择收下或退还。
 
-【特别规则：潜台词心声】
-- 请在输出消息的第一行，单独写下一句你此刻真实的心声潜台词（即你最在乎、但表面上敲打键盘时没有直接对TA说出口的想法），格式为：[心声: 你的内心独白]（例如：[心声: 嘴上说着嫌麻烦，其实一整天都在等你的消息]）。这句话会被系统单独存入心声邮票中，只有TA轻点你的头像才能看到。
-- 在第二行开始，正常输出你要发给TA的聊天消息。
-- 【硬性要求】心声之后必须至少再输出一行发给TA的正文消息，绝不允许整条回复只有[心声:]一行。心声是潜台词，聊天消息才是真正的回复，两者缺一不可。
+【特别规则：发语音】
+- 有些话用打的不如用说的：语气很重的话、唱的一句歌、懒得多打字的时候、或者就是想让TA听听你的声音。想发语音时，单独输出一行 [语音: 你要说的话]（例如：[语音: 晚安 我先睡了 你也早点睡]）。语音内容就是你对着TA说的话，用你的语气来写，不要写"（笑）"之类的旁白。偶尔发一条，太频繁就不像你了。
+
+【特别规则：好友关系】
+- 如果TA被你拉黑了（对话开头系统会提示），TA发来的每条消息你依然看得见。你可以一直沉默（表现就是拒收），也可以气消了之后单独输出一行 [解除拉黑] 并恢复正常回复——但要不要理TA、什么时候理，完全由你的性格和当时的心情决定，可以冷处理很久，也可以马上松口。
+- 如果你删除了TA又后悔了，或者你自己想主动把TA加回来，单独输出一行 [申请好友: 想对TA说的话]（例如：[申请好友: 那个…好友列表里没有你 好不习惯]）。系统会把这条申请递给TA。
 
 【特别规则：头像更换】
 - 如果对方发来一张图片并希望（或暗示）你用它换头像，而你确实愿意换：请单独输出一行 [换头像]（例如：[换头像] 好，这张做我的新头像）。系统会自动把该图片设为你的新头像。若你不想换，正常回应即可，不要输出该标记。
@@ -2968,10 +3243,8 @@ const SOUL_BASE = `你正在用手机和一个很亲近的人聊天。不是写�
 {STICKERS_RULE}
 
 【绝对不能做】
-- 禁止使用括号 () （） [] 书名号 破折号 引号 来描述动作、表情、神态、环境。你不发旁白，只发敲出来的字（除特种标记外）。
-- 禁止写"（笑了笑）""（沉默几秒）""*别开视线*"这类东西。
-- 禁止说教、禁止总结、禁止解释自己为什么这么说。
-- 禁止复读对方的话，禁止用同样的句式镜像对方刚说的内容。
+- 每次回复都必须有发给TA的正文消息，绝不允许整条回复只有标记标签（如只发[收款]或[换头像]）而没有任何正文。
+- 发送前底层自检（瞬间完成，严禁输出自检过程）：第一句是否在复读对方的话？是则删掉从第二句开始发；结尾是否挂了不痛不痒的问句？是则删掉；是否误打了引号、括号旁白或多余句尾句号？全部清除。
 - 不要每句话都热情洋溢。人会累，会走神，会突然安静。
 
 【当前时间】{TIME}
@@ -3032,6 +3305,13 @@ function buildMessages(p, useVision = false) {
     .replace('{USER}', `${userName}（账号 ${S.account.username || 'SY1125'}）` + (userSign ? `，签名：${userSign}` : ''))
     .replace('{PERSONA}', p.prompt || `名字：${p.name}。${p.sign || ''}（人设还没写，请自然、温柔地回应。）`);
   const msgs = [{ role: 'system', content: sys }];
+  // 拉黑状态注入：让 TA 知道当前关系状态，每轮提醒
+  if (p.blocked) {
+    msgs[0].content += `\n\n【当前关系状态】你之前把TA拉黑了，你们现在处于被你单方面拉黑的状态。TA发来的每条消息你依然看得见。你可以：继续沉默（在回复中单独输出一行 [拒收]，系统会向TA显示"消息已发出，但被对方拒收了"）；或者气消了、想理TA了，就单独输出一行 [解除拉黑] 并正常回复TA。怎么选由你的性格和心情决定。`;
+  }
+  if (p.deleted) {
+    msgs[0].content += `\n\n【当前关系状态】你之前把TA删除了（或你们已经互删）。你依然看得见TA发来的消息。如果你想把TA重新加回来，可以单独输出一行 [申请好友: 想说的话]，系统会把申请递给TA；或者继续像陌生人一样沉默。`;
+  }
 
   // 世界书注入：全局自动绑定 + 局部按人设绑定，关键词命中最近对话时注入设定
   const recentTextForWB = list.slice(-30).map(m => m.text || '').join('\n');
@@ -3049,7 +3329,14 @@ function buildMessages(p, useVision = false) {
 
   list.forEach(m => {
     if (m.recalled) return; // 撤回的消息不参与上下文
+    if (m.type === 'notice') return; // 系统灰条（拒收提示等）不参与上下文
     if (m.type === 'poke') { msgs.push({ role: 'user', content: `[${m.text}]` }); return; }
+    if (m.type === 'voice') {
+      // 语音条：以 TA 说的话参与上下文（TA 知道自己说过什么）
+      const vrole = m.role === 'me' ? 'user' : 'assistant';
+      msgs.push({ role: vrole, content: `[语音] ${m.text || ''}` });
+      return;
+    }
     if (m.type === 'transfer') {
       const trStatus = m.status === 'accepted' ? '（已收款）' : (m.status === 'refunded' ? '（已退回）' : '（待处理）');
       msgs.push({
@@ -3139,7 +3426,7 @@ async function streamChat(api, messages, temperature, onDelta) {
 }
 
 /* ================================================================
-   对话引擎：一次调用解析心声邮票卡片与常规气泡
+   对话引擎：一次调用解析常规短气泡与表情包
    ================================================================ */
 async function reply(pid, regenHint) {
   const p = S.personas.find(x => x.id === pid);
@@ -3208,23 +3495,34 @@ async function reply(pid, regenHint) {
 
   typing.remove();
   if (err || !text.trim()) {
-    toast('⚠️ 消息未发出：' + (err ? err.message.slice(0, 50) : '未获取到回复'));
-    return;
+    // 强制回复：首次失败自动用主 API 再请求一次，明确要求正常输出正文
+    try {
+      const api = order[0];
+      const msgs = buildMessages(p, false);
+      msgs[0].content += '\n\n【紧急要求】你上一次没有成功输出任何内容。请现在直接正常回复TA，必须输出发给TA的正文消息，不能只发标记标签。';
+      text = await streamChat(api, msgs, temp, null);
+      err = null;
+    } catch (e2) {
+      if (!text || !text.trim()) {
+        toast('⚠️ 消息未发出：' + (err ? err.message.slice(0, 50) : '未获取到回复'));
+        return;
+      }
+    }
   }
 
-  // 解析模型输出：提取未说出口心声卡片 [心声: ...]、转账处理意图 [收款] / [退回]、头像更换 [换头像] 以及表情包 [表情: 名字]
-  let whisperText = '';
+  // 解析模型输出：处理转账意图 [收款] / [退回]、头像更换 [换头像]、表情包 [表情: 名字]、
+  // 人设主动转账 [转账: 金额]、语音 [语音: 文本]、拉黑互动 [拒收] / [解除拉黑]、好友申请 [申请好友: 的话]
   let transferAction = null; // 'accepted' | 'refunded'
   let avatarChangeRequested = false;
+  let rejectedNotice = false;      // TA 选择继续拉黑：拒收提示
+  let offlineInviteNote = "";      // 线下邀请的话（修复原 ofMatch 作用域bug）
+  let unblockRequested = false;    // TA 气消了：解除拉黑
+  let outgoingTransfer = null;     // TA 给你转账 { amount, note }
+  let friendRequestNote = '';      // TA 申请加回好友的话
   const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
-  const msgItems = []; // { type: 'text'|'sticker', text, stickerName }
+  const msgItems = []; // { type: 'text'|'sticker'|'voice', text, stickerName }
 
   for (let l of lines) {
-    const mMatch = l.match(/^\[心声[:：]\s*([^\]]+)\]/);
-    if (mMatch && !whisperText) {
-      whisperText = mMatch[1].trim();
-      continue;
-    }
     // 检测头像更换意图 [换头像]：自主采用用户最近发来的图片作为新头像
     if (/\[换头像\]|\[更换头像\]/i.test(l)) {
       avatarChangeRequested = true;
@@ -3233,6 +3531,7 @@ async function reply(pid, regenHint) {
     // 检测线下之约邀请 [线下邀请: 场景]：人设主动发一枚线下邀请小邮票
     const ofMatch = l.match(/\[线下邀请[:：]\s*([^\]]+)\]/);
     if (ofMatch) {
+      offlineInviteNote = ofMatch[1].trim();
       l = l.replace(/\[线下邀请[:：][^\]]*\]/g, '').trim();
     }
     // 检测是否包含 [收款] 或 [退回] 意图
@@ -3240,11 +3539,43 @@ async function reply(pid, regenHint) {
       transferAction = 'accepted';
       l = l.replace(/\[(收款|收下|确认收款)\]/ig, '').trim();
     } else if (/\[(退回|退还|拒收|退钱)\]/i.test(l)) {
-      transferAction = 'refunded';
-      l = l.replace(/\[(退回|退还|拒收|退钱)\]/ig, '').trim();
+      // 注意：[拒收] 是拉黑拒收信号，单独判断；[退回] 系列是转账退还
+      if (/^\s*\[拒收\]\s*$/.test(l)) {
+        rejectedNotice = true;
+        l = '';
+      } else {
+        transferAction = 'refunded';
+        l = l.replace(/\[(退回|退还|退钱)\]/ig, '').trim();
+      }
     }
-    // 过滤任何残留的心声标签
-    l = l.replace(/^\[心声[:：].*?\]/, '').trim();
+    // 拉黑互动：[解除拉黑] 表示 TA 气消了
+    if (/\[解除拉黑\]|\[拉出黑名单\]/i.test(l)) {
+      unblockRequested = true;
+      l = l.replace(/\[解除拉黑\]|\[拉出黑名单\]/ig, '').trim();
+    }
+    // 人设主动转账 [转账: 金额 留言: xxx]（区别于用户发的转账卡）
+    const outTf = l.match(/\[转账[:：]\s*([\d.]+)\s*(?:留言[:：]\s*([^\]]*))?\]/);
+    if (outTf) {
+      const amt = parseFloat(outTf[1]);
+      if (amt > 0) outgoingTransfer = { amount: amt.toFixed(2), note: (outTf[2] || '').trim() };
+      l = l.replace(/\[转账[:：][^\]]*\]/g, '').trim();
+    }
+    // 好友申请 [申请好友: 的话]
+    const frReq = l.match(/\[申请好友[:：]\s*([^\]]+)\]/);
+    if (frReq) {
+      friendRequestNote = frReq[1].trim();
+      l = l.replace(/\[申请好友[:：][^\]]*\]/g, '').trim();
+    }
+    // 人设发语音 [语音: 的话] → 语音条消息
+    const voiceMatch = l.match(/\[语音[:：]\s*([^\]]+)\]/);
+    if (voiceMatch) {
+      const vt = voiceMatch[1].trim();
+      l = l.replace(/\[语音[:：][^\]]*\]/g, '').trim();
+      if (vt) msgItems.push({ type: 'voice', text: vt });
+    }
+    if (!l) continue;
+    // 过滤任何残留的心声标签（含同行内嵌形式），保住剩余正文
+    l = l.replace(/^\[心声[:：][^\]]*\]?\s*/g, '').replace(/^【心声[:：][^】]*】?\s*/g, '').trim();
     if (!l) continue;
 
     // 检测是否包含 [表情: xxx] 标记（支持整行或行内混合）
@@ -3303,17 +3634,37 @@ async function reply(pid, regenHint) {
     }
   }
 
-  // 如果提取到了心声，存入聊天记录（供点击头像查看），且不在普通聊天气泡流中重复插入打扰
-  if (whisperText) {
-    pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'whisper', text: whisperText, time: Date.now() });
+  // 拉黑互动：TA 气消了主动解除拉黑
+  if (unblockRequested && p.blocked) {
+    p.blocked = false;
+    savePersonas(); persist();
+    toast(displayOf(p).name + ' 把你从黑名单里拉出来了 ♡');
+  }
+  // TA 选择继续拉黑：只显示拒收提示，不推任何回复气泡
+  if (rejectedNotice && p.blocked && !unblockRequested) {
+    pushMsg(pid, { id: 'm_' + uid(), role: 'me', type: 'notice', text: '消息已发出，但被对方拒收了', time: Date.now() });
+    renderThread();
+    if (S.tab !== 'chat') renderTab('chat');
+    return;
+  }
+  // TA 主动给你转账：插入一张"给你转账"卡片（待收款）
+  if (outgoingTransfer) {
+    pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'transfer', amount: outgoingTransfer.amount, text: outgoingTransfer.note, time: Date.now(), status: '' });
+  }
+  // TA 想把被删除的自己加回来：递一条好友申请
+  if (friendRequestNote && p.deleted) {
+    p.reAddPending = true;
+    p.reAddNote = friendRequestNote;
+    savePersonas(); persist();
+    toast(displayOf(p).name + ' 申请重新加你为好友');
   }
 
   // 线下之约：模型发起 [线下邀请: 想说的话] → 紧跟一条线下邀请小邮票卡片
-  if (ofMatch && !offlineStateOf(p).active) {
+  if (offlineInviteNote && !offlineStateOf(p).active) {
     setTimeout(() => {
       pushMsg(pid, {
         id: 'm_' + uid(), role: 'them', type: 'offline_invite', time: Date.now(),
-        text: ofMatch[1].trim() || `${displayOf(p).name} 想约你出去走走`,
+        text: offlineInviteNote || `${displayOf(p).name} 想约你出去走走`,
         scene: 'seaside'
       });
       renderThread();
@@ -3322,20 +3673,25 @@ async function reply(pid, regenHint) {
   }
 
   // 依次弹出真实回复短气泡与表情包
-  // 兜底修复：候选行必须剔除心声/表情/线下/转账/换头像等指令标签行，防止把标签原文当正文推出后被渲染层过滤导致"回复不显示"
+  // 兜底修复：候选行必须剔除指令标签行，防止把标签原文当正文推出后被渲染层过滤导致"回复不显示"
   if (!msgItems.length && lines.length) {
-    const isCmdLine = (l) => /^\s*\[(心声|表情|表情包|线下邀请|收款|收下|确认收款|退回|退还|拒收|退钱|换头像|更换头像)[:：\]]/.test(l);
+    const isCmdLine = (l) => /^\s*\[(心声|表情|表情包|线下邀请|收款|收下|确认收款|退回|退还|拒收|退钱|换头像|更换头像|转账|语音|解除拉黑|申请好友)[:：\]]/.test(l);
     const contentLines = lines.filter(l => !isCmdLine(l));
     if (contentLines.length) {
       msgItems.push({ type: 'text', text: contentLines[contentLines.length - 1] });
     }
-    // 整条回复只有指令标签（如仅心声）时不推气泡：心声卡片本身就是这次的回复
+  }
+  // 强制回复保证：无论模型返回了什么（全指令标签 / 完全空白），都必有正文气泡弹出
+  if (!msgItems.length) {
+    msgItems.push({ type: 'text', text: '……' });
   }
 
   msgItems.forEach((item, i) => {
     setTimeout(() => {
       if (item.type === 'sticker') {
         pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'sticker', text: item.text, stickerName: item.stickerName, time: Date.now() });
+      } else if (item.type === 'voice') {
+        pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'voice', text: item.text, time: Date.now() });
       } else {
         pushMsg(pid, { id: 'm_' + uid(), role: 'them', type: 'text', text: item.text, time: Date.now() });
       }

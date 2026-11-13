@@ -919,77 +919,43 @@ html[data-theme="midnight"] .msg.me .msg-bubble {
   font-weight: 600;
 }
 
-/* ---------------- 居中弹出的复古心声邮票卡片 Modal ---------------- */
-.whisper-modal-mask {
-  position: fixed; inset: 0; z-index: 90;
-  background: rgba(10, 16, 26, 0.48);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-  animation: fadeIn .2s ease;
-}
-.whisper-stamp-card {
-  width: 100%; max-width: 310px;
-  background: #FCFDFE;
+/* ---------------- 语音条气泡（MiniMax 合成播放） ---------------- */
+.voice-bubble {
+  display: flex; align-items: center; gap: 8px;
+  min-width: 120px; max-width: 220px;
+  padding: 11px 14px;
   border-radius: 18px;
-  border: 1.5px solid rgba(220, 228, 238, 0.95);
-  box-shadow: 0 16px 40px -8px rgba(15, 23, 42, 0.35);
-  padding: 22px 20px 18px;
-  position: relative;
-  overflow: hidden;
-  animation: scalePopIn .24s cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--bubble-them, #fff);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-@keyframes scalePopIn {
-  from { transform: scale(0.92); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+.msg.me .voice-bubble {
+  background: var(--bubble-me, var(--accent-soft));
 }
-html[data-theme="midnight"] .whisper-stamp-card {
-  background: #1A222F;
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+.voice-bubble:active { opacity: .8; }
+.vb-play-ico {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
 }
-.whisper-stamp-card::before {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 5px;
-  background-image: radial-gradient(circle at 6px 0, transparent 3.5px, #8EB4D6 4px, transparent 4.5px);
-  background-size: 12px 5px;
-  opacity: 0.8;
+.vb-play-ico svg { width: 18px; height: 18px; }
+.vb-wave {
+  display: flex; align-items: center; gap: 2.5px; flex: 1;
 }
-.wsc-hdr {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
+.vb-wave i {
+  display: block; width: 2.5px; border-radius: 2px;
+  background: var(--accent); opacity: .55;
 }
-.wsc-badge {
-  font-size: 10.5px; font-weight: 700; color: #5B82A6;
-  letter-spacing: 0.08em; text-transform: uppercase;
+.vb-wave i:nth-child(3n) { height: 14px; }
+.vb-wave i:nth-child(3n+1) { height: 8px; }
+.vb-wave i:nth-child(3n+2) { height: 18px; }
+.vb-sec {
+  font-size: 11.5px; color: var(--text-3); flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
-html[data-theme="midnight"] .wsc-badge { color: #93C5FD; }
-.wsc-date { font-size: 11px; color: var(--text-4); font-weight: 500; }
-.wsc-content {
-  font-size: 14.5px; line-height: 1.6;
-  color: #1E293B; letter-spacing: 0.02em;
-  padding: 10px 0 16px;
-  min-height: 54px;
-  word-break: break-word;
-}
-html[data-theme="midnight"] .wsc-content { color: #F1F5F9; }
-.wsc-ftr {
-  display: flex; align-items: center; justify-content: space-between;
-  padding-top: 12px;
-  border-top: 1px dashed rgba(220, 228, 238, 0.9);
-  font-size: 11px; color: var(--text-3);
-}
-html[data-theme="midnight"] .wsc-ftr {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-.wsc-close-btn {
-  width: 100%; margin-top: 16px; padding: 10px;
-  border-radius: var(--r-pill); background: var(--accent-soft);
-  color: var(--accent); font-size: 13px; font-weight: 600;
-  border: none; cursor: pointer; text-align: center;
-}
-.wsc-close-btn:active { opacity: 0.85; }
 .msg-img {
   max-width: 200px;
   border-radius: 18px;
