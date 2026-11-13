@@ -134,6 +134,9 @@
       transition: background 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
     }
 
+    @media (display-mode: standalone) {
+      html, body { height: 100vh !important; }
+    }
     html, body {
       margin: 0;
       padding: 0;
