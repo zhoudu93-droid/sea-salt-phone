@@ -608,7 +608,6 @@ function renderAuth() {
       persist();
       $('#boot').classList.add('hidden');
       startApp();
-      toast('欢迎来到山茶信笺 v121 ♡');
     } else {
       // 登录支持手机号、验证码或密码登录
       if (!acc && !phone) { toast('请输入手机号或账号'); return; }
