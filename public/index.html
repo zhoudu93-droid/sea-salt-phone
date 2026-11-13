@@ -6488,15 +6488,19 @@ function escapeHtml(str) {
     __chatLayer.appendChild(splash); // 后append天然盖住iframe
     document.body.appendChild(__chatLayer);
     let splashGone = false;
+    const splashStart = Date.now();
     const removeSplash = function(){
       if (splashGone) return; splashGone = true;
       splash.style.opacity = '0';
       setTimeout(function(){ if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 500);
     };
+    // 最少看满1.2s（保证动画可见）；聊天页就绪后再淡出；10s兜底防卡
+    const minVisible = 1200;
     chatFrame.addEventListener('load', function(){
-      setTimeout(removeSplash, 400); // 聊天页渲染一瞬后淡出
+      const wait = Math.max(0, minVisible - (Date.now() - splashStart));
+      setTimeout(removeSplash, wait + 150);
     });
-    setTimeout(removeSplash, 2600); // 兜底
+    setTimeout(removeSplash, 10000);
     // iOS 布局高度补偿：层下探60px盖住小白条区，聊天页 --app-h/--safe-b 由父页面动态注入
     const getSafeB = function() {
       try {
